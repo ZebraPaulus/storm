@@ -74,9 +74,10 @@ model:
 
 
 cost:
+  # cost for rotation and orientation
   goal_pose:
     vec_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-    weight: [15.0, 100.0]
+    weight: [0.0, 100.0]
     position_gaussian_params: {'n':0, 'c':0.0, 's':0.0, 'r':10.0}
     orientation_gaussian_params: {'n':0, 'c':0.0, 's':0.0, 'r':10.0}
     hinge_val: -1
@@ -106,7 +107,6 @@ cost:
     distance_threshold: 0.05
     gaussian_params: {'n':0, 'c':0.0, 's':0, 'r':10.0}
     
-
   null_space:
     weight: 1.0 #0.01 #0.05 #0.5 #1.0
     gaussian_params: {'n':0, 'c':0.0, 's':0, 'r':1.0}
@@ -132,7 +132,7 @@ cost:
     #threshold: 0.35
     
   stop_cost:
-    weight: 100.0
+    weight: 20.0
     max_nlimit: 1.5 #0.2
     gaussian_params: {'n':0, 'c':0.0, 's':0, 'r':1.0}
 
@@ -152,6 +152,7 @@ cost:
     weight: 0.0 
     gaussian_params: {'n':0, 'c':0.2, 's':0, 'r':10.0}
     order: 1
+
   state_bound:
     weight: 1000.0 
     gaussian_params: {'n':0, 'c':0.0, 's':0, 'r':10.0}

@@ -23,31 +23,45 @@
 
 import torch
 from torch import nn
-from torch.nn import Sequential as Seq, Linear as Lin, ReLU, ELU, ReLU6
+from torch.nn import (
+    Sequential as Seq, 
+    Linear as Lin, 
+    ReLU, 
+    ELU, 
+    ReLU6)
 from .network_macros import MLPRegression, scale_to_base, scale_to_net
 from ...util_file import get_weights_path, join_path
 
 
-class RobotSelfCollisionNet():
+class RobotSelfCollisionNet:
     """This class loads a network to predict the signed distance given a robot joint config."""
-    
+
     def __init__(self, n_joints=0):
         """initialize class
 
         Args:
             n_joints (int, optional): Number of joints, same as number of channels for nn input. Defaults to 0.
-        """        
-        
+        """
+
         super().__init__()
         act_fn = ReLU6
         in_channels = n_joints
-        
+
         out_channels = 1
         dropout_ratio = 0.1
         mlp_layers = [256, 64]
-        self.model = MLPRegression(in_channels, out_channels, mlp_layers,
-                                   dropout_ratio, batch_norm=False, act_fn=act_fn,
-                                   layer_norm=False, nerf=True)
+        self.model = MLPRegression(
+            in_channels,
+            out_channels,
+            mlp_layers,
+            dropout_ratio,
+            batch_norm=False,
+            act_fn=act_fn,
+            layer_norm=False,
+            nerf=True,
+        )
+        self.norm_dict = None
+        self.tensor_args = None
 
     def load_weights(self, f_name, tensor_args):
         """Loads pretrained network weights if available.
@@ -55,21 +69,20 @@ class RobotSelfCollisionNet():
         Args:
             f_name (str): file name, this is relative to weights folder in this repo.
             tensor_args (Dict): device and dtype for pytorch tensors
-        """        
+        """
         try:
             chk = torch.load(join_path(get_weights_path(), f_name))
             self.model.load_state_dict(chk["model_state_dict"])
             self.norm_dict = chk["norm"]
             for k in self.norm_dict.keys():
-                self.norm_dict[k]['mean'] = self.norm_dict[k]['mean'].to(**tensor_args)
-                self.norm_dict[k]['std'] = self.norm_dict[k]['std'].to(**tensor_args)
+                self.norm_dict[k]["mean"] = self.norm_dict[k]["mean"].to(**tensor_args)
+                self.norm_dict[k]["std"] = self.norm_dict[k]["std"].to(**tensor_args)
         except Exception:
-            print('WARNING: Weights not loaded')
+            print("WARNING: Weights not loaded")
         self.model = self.model.to(**tensor_args)
         self.tensor_args = tensor_args
         self.model.eval()
-        
-            
+
     def compute_signed_distance(self, q):
         """Compute the signed distance given the joint config.
 
@@ -78,11 +91,11 @@ class RobotSelfCollisionNet():
 
         Returns:
             [tensor]: largest signed distance between any two non-consecutive links of the robot.
-        """        
+        """
         with torch.no_grad():
-            q_scale = scale_to_net(q, self.norm_dict,'x')
+            q_scale = scale_to_net(q, self.norm_dict, "x")
             dist = self.model.forward(q_scale)
-            dist_scale = scale_to_base(dist, self.norm_dict, 'y')
+            dist_scale = scale_to_base(dist, self.norm_dict, "y")
         return dist_scale
 
     def check_collision(self, q):
@@ -93,8 +106,8 @@ class RobotSelfCollisionNet():
 
         Returns:
             [tensor]: probability of collision of links, from sigmoid value.
-        """        
+        """
         with torch.no_grad():
-            q_scale = scale_to_net(q, self.norm_dict,'x')
+            q_scale = scale_to_net(q, self.norm_dict, "x")
             dist = torch.sigmoid(self.model.forward(q_scale))
         return dist
