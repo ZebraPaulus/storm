@@ -520,7 +520,7 @@ class CoordinateTransform(object):
 
 @torch.jit.script   
 def multiply_transform(w_rot_l, w_trans_l, l_rot_c, l_trans_c):
-    # type: (Tensor, Tensor, Tensor, Tensor) -> Tuple[Tensor, Tensor]
+    # type= (Tensor, Tensor, Tensor, Tensor) -> Tuple[Tensor, Tensor]
     #print(l_rot_c.shape, w_rot_l.shape)
     w_rot_c = w_rot_l @ l_rot_c
     
@@ -532,7 +532,7 @@ def multiply_transform(w_rot_l, w_trans_l, l_rot_c, l_trans_c):
 
 @torch.jit.script   
 def multiply_inv_transform(l_rot_w, l_trans_w, l_rot_c, l_trans_c):
-    # type: (Tensor, Tensor, Tensor, Tensor) -> Tuple[Tensor, Tensor]
+    # type= (Tensor, Tensor, Tensor, Tensor) -> Tuple[Tensor, Tensor]
     w_rot_l = l_rot_w.transpose(-1,-2)
     w_rot_c = w_rot_l @ l_rot_c
 
@@ -547,7 +547,7 @@ def multiply_inv_transform(l_rot_w, l_trans_w, l_rot_c, l_trans_c):
 
 @torch.jit.script
 def transform_point(point, rot, trans):
-    # type: (Tensor, Tensor, Tensor) -> Tensor
+    # type= (Tensor, Tensor, Tensor) -> Tensor
 
     #new_point = (rot @ (point).unsqueeze(-1)).squeeze(-1) + trans
     new_point = (point @ rot.transpose(-1,-2)) + trans
