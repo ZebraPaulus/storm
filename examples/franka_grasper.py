@@ -80,12 +80,14 @@ from storm_kit.mpc.task.reacher_task import ReacherTask
 
 np.set_printoptions(precision=2)
 
+# from franka_motion_control import FrankaMotionControl
+
 
 def mpc_robot_interactive(args, gym_instance):
     vis_ee_target = True
-    robot_file = args.robot + ".yml"            # its the same robot
-    task_file = args.robot + "_grasper.yml"     # task might be different
-    world_file = "collision_ball_grasper.yml"   # world is the lab
+    robot_file = "franka.yml"
+    task_file = "franka_grasper.yml"
+    world_file = "robo_lab.yml"
 
     gym = gym_instance.gym
     sim = gym_instance.sim
@@ -102,6 +104,14 @@ def mpc_robot_interactive(args, gym_instance):
         device = "cuda"
     else:
         device = "cpu"
+
+    # set light to reduce shadows:
+    intensity = 1
+    light_index = gymapi.Vec3(1.0, 1.0, 1.0)
+    ambient = gymapi.Vec3(0.4, 0.4, 0.4)
+    direction = gymapi.Vec3(0.0, np.pi, np.pi / 2)
+
+    gym.set_light_parameters(sim, intensity, light_index, ambient, direction)
 
     sim_params["collision_model"] = None
     # create robot simulation:
@@ -167,6 +177,7 @@ def mpc_robot_interactive(args, gym_instance):
 
     mpc_tensor_dtype = {"device": device, "dtype": torch.float32}
 
+    # Franka initial state:
     franka_bl_state = np.array(
         [-0.3, 0.3, 0.2, -2.0, 0.0, 2.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     )
@@ -192,7 +203,7 @@ def mpc_robot_interactive(args, gym_instance):
     object_pose.p = gymapi.Vec3(x, y, z)
     object_pose.r = gymapi.Quat(0, 0, 0, 1)
 
-    obj_asset_file = "urdf/mug/movable_mug.urdf"
+    obj_asset_file = "urdf/ball/movable_ball.urdf"
     obj_asset_root = get_assets_path()
 
     if vis_ee_target:
@@ -212,7 +223,7 @@ def mpc_robot_interactive(args, gym_instance):
             env_ptr, target_object, 6, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
         )
 
-        obj_asset_file = "urdf/mug/mug.urdf"
+        obj_asset_file = "urdf/ball/ball.urdf"
         obj_asset_root = get_assets_path()
 
         ee_handle = world_instance.spawn_object(
@@ -220,7 +231,7 @@ def mpc_robot_interactive(args, gym_instance):
             obj_asset_root,
             object_pose,
             color=tray_color,
-            name="ee_current_as_mug",
+            name="ee_current_as_ball",
         )
         ee_body_handle = gym.get_actor_rigid_body_handle(env_ptr, ee_handle, 0)
         tray_color = gymapi.Vec3(0.0, 0.8, 0.0)
