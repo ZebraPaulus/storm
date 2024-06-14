@@ -24,22 +24,35 @@ import torch
 
 from ..differentiable_robot_model.coordinate_transform import CoordinateTransform
 
-def tensor_circle(pt, radius, tensor=None, tensor_args={'device':"cpu", 'dtype':torch.float32}):
-    if(tensor is None):
+
+def tensor_circle(
+    pt, radius, tensor=None, tensor_args={"device": "cpu", "dtype": torch.float32}
+):
+    if tensor is None:
         tensor = torch.empty(3, **tensor_args)
     tensor[:2] = torch.as_tensor(pt, **tensor_args)
     tensor[2] = radius
     return tensor
 
-def tensor_sphere(pt, radius, tensor=None, tensor_args={'device':"cpu", 'dtype':torch.float32}):
-    if(tensor is None):
+
+def tensor_sphere(
+    pt, radius, tensor=None, tensor_args={"device": "cpu", "dtype": torch.float32}
+):
+    if tensor is None:
         tensor = torch.empty(4, **tensor_args)
     tensor[:3] = torch.as_tensor(pt, **tensor_args)
     tensor[3] = radius
     return tensor
 
-def tensor_capsule(base, tip, radius, tensor=None, tensor_args={'device':"cpu", 'dtype':torch.float32}):
-    if(tensor is None):
+
+def tensor_capsule(
+    base,
+    tip,
+    radius,
+    tensor=None,
+    tensor_args={"device": "cpu", "dtype": torch.float32},
+):
+    if tensor is None:
         tensor = torch.empty(7, **tensor_args)
     tensor[:3] = torch.as_tensor(base, **tensor_args)
     tensor[3:6] = torch.as_tensor(tip, **tensor_args)
@@ -47,14 +60,22 @@ def tensor_capsule(base, tip, radius, tensor=None, tensor_args={'device':"cpu", 
     return tensor
 
 
-def tensor_cube(pose, dims, tensor_args={'device':"cpu", 'dtype':torch.float32}):
+def tensor_cube(pose, dims, tensor_args={"device": "cpu", "dtype": torch.float32}):
     w_T_b = CoordinateTransform(pose=pose, tensor_args=tensor_args)
     b_T_w = w_T_b.inverse()
     dims_t = torch.tensor([dims[0], dims[1], dims[2]], **tensor_args)
-    cube = {'trans': w_T_b.translation(), 'rot': w_T_b.rotation(),
-            'inv_trans': b_T_w.translation(), 'inv_rot': b_T_w.rotation(),
-            'dims':dims_t}
-    cube = [w_T_b.translation(), w_T_b.rotation(),
-            b_T_w.translation(), b_T_w.rotation(),
-            dims_t]
+    cube = {
+        "trans": w_T_b.translation(),
+        "rot": w_T_b.rotation(),
+        "inv_trans": b_T_w.translation(),
+        "inv_rot": b_T_w.rotation(),
+        "dims": dims_t,
+    }
+    cube = [
+        w_T_b.translation(),
+        w_T_b.rotation(),
+        b_T_w.translation(),
+        b_T_w.rotation(),
+        dims_t,
+    ]
     return cube

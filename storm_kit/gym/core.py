@@ -181,7 +181,7 @@ class World(object):
                 pose = cube[obj]["pose"]
                 try:
                     c = cube[obj]["color"]
-                    rgb = [c["r"], c["g"], c["b"],0.2]
+                    rgb = [c["r"], c["g"], c["b"], 0.2]
                 except:
                     rgb = color
                 self.add_table(dims, pose, color=rgb)

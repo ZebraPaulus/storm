@@ -41,26 +41,25 @@ dependencies:
   - matplotlib
   - quaternion
   - pip:
-    - pytorch3d
-    - ghalton
-    - argcomplete
-    - click
-    - cloudpickle
-    - imageio-ffmpeg
-    - pyyaml
-    - scipy
-    - tqdm
-    - urdfpy
-    - wheel
-    - hydra-core
-    - urdf_parser_py
-    - sphinx-rtd-theme
-    - sphinx
-    - sphinx-autodoc-annotation
-    - hydra-core
-    - urdf_parser_py
-    - numpy-quaternion
-    - opencv-python
-    - open3d
-    - m2r2
-
+      - pytorch3d
+      - ghalton
+      - argcomplete
+      - click
+      - cloudpickle
+      - imageio-ffmpeg
+      - pyyaml
+      - scipy
+      - tqdm
+      - urdfpy
+      - wheel
+      - hydra-core
+      - urdf_parser_py
+      - sphinx-rtd-theme
+      - sphinx
+      - sphinx-autodoc-annotation
+      - hydra-core
+      - urdf_parser_py
+      - numpy-quaternion
+      - opencv-python
+      - open3d
+      - m2r2

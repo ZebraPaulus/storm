@@ -39,14 +39,19 @@ class SimpleTask(BaseTask):
        :parts: 1
 
     """
-    def __init__(self, robot_file='simple_reacher.yml', tensor_args={'device':"cpu", 'dtype':torch.float32}):
+
+    def __init__(
+        self,
+        robot_file="simple_reacher.yml",
+        tensor_args={"device": "cpu", "dtype": torch.float32},
+    ):
 
         super().__init__(tensor_args=tensor_args)
 
         self.controller = self.init_mppi(robot_file)
 
         self.init_aux()
-        
+
     def get_rollout_fn(self, **kwargs):
         rollout_fn = SimpleReacher(**kwargs)
         return rollout_fn
@@ -57,19 +62,25 @@ class SimpleTask(BaseTask):
         with open(mpc_yml_file) as file:
             exp_params = yaml.load(file, Loader=yaml.FullLoader)
 
-        rollout_fn = self.get_rollout_fn(exp_params=exp_params, tensor_args=self.tensor_args)
+        rollout_fn = self.get_rollout_fn(
+            exp_params=exp_params, tensor_args=self.tensor_args
+        )
 
-
-
-        mppi_params = exp_params['mppi']
+        mppi_params = exp_params["mppi"]
         dynamics_model = rollout_fn.dynamics_model
-        mppi_params['d_action'] = dynamics_model.d_action
-        mppi_params['action_lows'] = -exp_params['model']['max_action'] * torch.ones(dynamics_model.d_action, **self.tensor_args)
-        mppi_params['action_highs'] = exp_params['model']['max_action'] * torch.ones(dynamics_model.d_action, **self.tensor_args)
-        init_action = torch.zeros((mppi_params['horizon'], dynamics_model.d_action), **self.tensor_args)
-        mppi_params['init_mean'] = init_action
-        mppi_params['rollout_fn'] = rollout_fn
-        mppi_params['tensor_args'] = self.tensor_args
+        mppi_params["d_action"] = dynamics_model.d_action
+        mppi_params["action_lows"] = -exp_params["model"]["max_action"] * torch.ones(
+            dynamics_model.d_action, **self.tensor_args
+        )
+        mppi_params["action_highs"] = exp_params["model"]["max_action"] * torch.ones(
+            dynamics_model.d_action, **self.tensor_args
+        )
+        init_action = torch.zeros(
+            (mppi_params["horizon"], dynamics_model.d_action), **self.tensor_args
+        )
+        mppi_params["init_mean"] = init_action
+        mppi_params["rollout_fn"] = rollout_fn
+        mppi_params["tensor_args"] = self.tensor_args
         controller = MPPI(**mppi_params)
         self.exp_params = exp_params
         return controller

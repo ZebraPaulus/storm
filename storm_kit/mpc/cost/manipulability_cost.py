@@ -30,10 +30,17 @@ from .gaussian_projection import GaussianProjection
 eps = 0.01
 
 
-
 class ManipulabilityCost(nn.Module):
-    def __init__(self, ndofs, weight=None, gaussian_params={}, device=torch.device('cpu'), float_dtype=torch.float32, thresh=0.1):
-        super(ManipulabilityCost, self).__init__() 
+    def __init__(
+        self,
+        ndofs,
+        weight=None,
+        gaussian_params={},
+        device=torch.device("cpu"),
+        float_dtype=torch.float32,
+        thresh=0.1,
+    ):
+        super(ManipulabilityCost, self).__init__()
         self.device = device
         self.float_dtype = float_dtype
         self.weight = torch.as_tensor(weight, device=device, dtype=float_dtype)
@@ -41,23 +48,20 @@ class ManipulabilityCost(nn.Module):
 
         self.ndofs = ndofs
         self.thresh = thresh
-        self.i_mat = torch.ones((6,1), device=self.device, dtype=self.float_dtype)
+        self.i_mat = torch.ones((6, 1), device=self.device, dtype=self.float_dtype)
+
     def forward(self, jac_batch):
         inp_device = jac_batch.device
-        
-        
 
         with torch.cuda.amp.autocast(enabled=False):
-            
-            J_J_t = torch.matmul(jac_batch, jac_batch.transpose(-2,-1))
+
+            J_J_t = torch.matmul(jac_batch, jac_batch.transpose(-2, -1))
             score = torch.sqrt(torch.det(J_J_t))
         score[score != score] = 0.0
-        
-        
-        score[score > self.thresh] = self.thresh #1.0
+
+        score[score > self.thresh] = self.thresh  # 1.0
         score = (self.thresh - score) / self.thresh
 
-        cost = self.weight * score 
-        
+        cost = self.weight * score
+
         return cost.to(inp_device)
-    

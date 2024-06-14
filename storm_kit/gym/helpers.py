@@ -28,12 +28,14 @@ def load_struct_from_dict(struct_instance, dict_instance):
     Assumptions:
     Currently the struct cannot have a dictionary for one of the objects as that will start recursing.
     """
-    #print(dict_instance)
+    # print(dict_instance)
     for key in dict_instance.keys():
-        if(hasattr(struct_instance, key)):
-            if(isinstance(dict_instance[key],dict)):
-                sub_struct = load_struct_from_dict(getattr(struct_instance,key), dict_instance[key])
-                setattr(struct_instance,key,sub_struct)
+        if hasattr(struct_instance, key):
+            if isinstance(dict_instance[key], dict):
+                sub_struct = load_struct_from_dict(
+                    getattr(struct_instance, key), dict_instance[key]
+                )
+                setattr(struct_instance, key, sub_struct)
             else:
-                setattr(struct_instance,key,dict_instance[key])
+                setattr(struct_instance, key, dict_instance[key])
     return struct_instance

@@ -24,6 +24,7 @@
 import torch
 from ...differentiable_robot_model.coordinate_transform import transform_point
 
+
 def sdf_capsule_to_pt(capsule_base, capsule_tip, capsule_radius, pt):
     """Computes distance between a capsule and a point
 
@@ -39,12 +40,17 @@ def sdf_capsule_to_pt(capsule_base, capsule_tip, capsule_radius, pt):
     pt_base = pt - capsule_base
     tip_base = capsule_tip - capsule_base
 
-    h = torch.clamp(torch.dot(pt_base, tip_base) / torch.dot(tip_base,tip_base), 0.0, 1.0)
-    
+    h = torch.clamp(
+        torch.dot(pt_base, tip_base) / torch.dot(tip_base, tip_base), 0.0, 1.0
+    )
+
     dist = torch.norm(pt_base - tip_base * h) - capsule_radius
     return dist
 
-def sdf_capsule_to_sphere(capsule_base, capsule_tip, capsule_radius, sphere_pt, sphere_radius):
+
+def sdf_capsule_to_sphere(
+    capsule_base, capsule_tip, capsule_radius, sphere_pt, sphere_radius
+):
     """Compute signed distance between capsule and sphere.
 
     Args:
@@ -56,18 +62,17 @@ def sdf_capsule_to_sphere(capsule_base, capsule_tip, capsule_radius, sphere_pt, 
 
     Returns:
         (tensor): signed distance (negative outside, positive inside) [b,1]
-    """    
+    """
     pt_base = sphere_pt - capsule_base
     tip_base = capsule_tip - capsule_base
-    
+
     pt_dot = (pt_base * tip_base).sum(-1)
     cap_dot = (tip_base * tip_base).sum(-1)
 
     h = torch.clamp(pt_dot / cap_dot, 0.0, 1.0)
-    norm = torch.norm(pt_base - tip_base * h.unsqueeze(-1),dim=-1)
+    norm = torch.norm(pt_base - tip_base * h.unsqueeze(-1), dim=-1)
     dist = (norm - capsule_radius) - sphere_radius
     return dist
-
 
 
 def sdf_pt_to_sphere(sphere_pt, sphere_radius, query_pt):
@@ -80,8 +85,9 @@ def sdf_pt_to_sphere(sphere_pt, sphere_radius, query_pt):
 
     Returns:
         (tensor): signed distance (negative outside, positive inside) [b,1]
-    """    
-    return jit_sdf_pt_to_sphere(sphere_pt,sphere_radius,query_pt)
+    """
+    return jit_sdf_pt_to_sphere(sphere_pt, sphere_radius, query_pt)
+
 
 def sdf_pt_to_box(box_dims, box_trans, box_rot, query_pts):
     """signed distance between box and point. Points are assumed to be in world frame.
@@ -94,80 +100,90 @@ def sdf_pt_to_box(box_dims, box_trans, box_rot, query_pts):
 
     Returns:
         (tensor): signed distance (negative outside, positive inside) [b,1]
-    """    
+    """
 
     return jit_sdf_pt_to_box(box_dims, box_trans, box_rot, query_pts)
+
 
 @torch.jit.script
 def jit_sdf_pt_to_box(box_dims, box_trans, box_rot, query_pts):
     # transform points to pose:
     l_pts = transform_point(query_pts, box_rot, box_trans)
-    
 
     dmin = l_pts - (-box_dims / 2.0)
     dmin[dmin > 0.0] = 0.0
-    
+
     dmax = l_pts - (box_dims / 2.0)
     dmax[dmax < 0.0] = 0.0
-    
-    dist = torch.norm(dmin + dmax , dim=-1)
 
-    
-    in_bounds = torch.logical_and(torch.all(l_pts < box_dims/2.0, dim=-1),
-                                  torch.all(l_pts > -1.0 * box_dims/2.0, dim=-1))
+    dist = torch.norm(dmin + dmax, dim=-1)
+
+    in_bounds = torch.logical_and(
+        torch.all(l_pts < box_dims / 2.0, dim=-1),
+        torch.all(l_pts > -1.0 * box_dims / 2.0, dim=-1),
+    )
     dist[~in_bounds] *= -1.0
 
     return dist
 
+
 @torch.jit.script
 def jit_sdf_pt_to_sphere(sphere_pt, sphere_radius, query_pt):
-    
-    dist = sphere_radius - torch.norm(query_pt - sphere_pt,dim=-1)
-    
+
+    dist = sphere_radius - torch.norm(query_pt - sphere_pt, dim=-1)
+
     return dist
+
 
 @torch.jit.script
 def get_pt_primitive_distance(w_pts, world_spheres, world_cubes, dist):
-    # type: (Tensor, Tensor, List[List[Tensor]], Tensor) -> Tensor
-    
+    # type= (Tensor, Tensor, List[List[Tensor]], Tensor) -> Tensor
+
     for i in range(world_spheres.shape[1]):
         # compute distance between w_pts and sphere:
         # world_spheres: b, 0, 3
-        d = sdf_pt_to_sphere(world_spheres[:,i,:3],
-                             world_spheres[:,i,3],
-                             w_pts)
-        dist[:,i,:] = d
-        
+        d = sdf_pt_to_sphere(world_spheres[:, i, :3], world_spheres[:, i, 3], w_pts)
+        dist[:, i, :] = d
+
     # cube signed distance:
     for i in range(len(world_cubes)):
-        
+
         cube = world_cubes[i]
-        #print(cube['inv_trans'], cube['trans'])
+        # print(cube['inv_trans'], cube['trans'])
         d = sdf_pt_to_box(cube[-1], cube[2], cube[3], w_pts)
-        dist[:,i + world_spheres.shape[1],:] = d
+        dist[:, i + world_spheres.shape[1], :] = d
     return dist
+
 
 @torch.jit.script
 def get_sphere_primitive_distance(w_sphere, world_spheres, world_cubes):
-    # type: (Tensor, Tensor, List[List[Tensor]]) -> Tensor
-    dist = torch.zeros((w_sphere.shape[0], world_spheres.shape[1]+len(world_cubes), w_sphere.shape[1]), device=w_sphere.device, dtype=w_sphere.dtype)
+    # type= (Tensor, Tensor, List[List[Tensor]]) -> Tensor
+    dist = torch.zeros(
+        (
+            w_sphere.shape[0],
+            world_spheres.shape[1] + len(world_cubes),
+            w_sphere.shape[1],
+        ),
+        device=w_sphere.device,
+        dtype=w_sphere.dtype,
+    )
 
     for i in range(world_spheres.shape[1]):
         # compute distance between w_pts and sphere:
         # world_spheres: b, 0, 3
-        d = sdf_pt_to_sphere(world_spheres[:,i,:3],
-                             world_spheres[:,i,3],
-                             w_sphere[...,:3]) + w_sphere[...,3]
-        
-        dist[:,i,:] = d
-        
-    
+        d = (
+            sdf_pt_to_sphere(
+                world_spheres[:, i, :3], world_spheres[:, i, 3], w_sphere[..., :3]
+            )
+            + w_sphere[..., 3]
+        )
+
+        dist[:, i, :] = d
+
     # cube signed distance:
     for i in range(len(world_cubes)):
         cube = world_cubes[i]
-        d = sdf_pt_to_box(cube[-1], cube[2], cube[3], w_sphere[...,:3])
-        dist[:,i + world_spheres.shape[1],:] = d + w_sphere[...,3]
-        
+        d = sdf_pt_to_box(cube[-1], cube[2], cube[3], w_sphere[..., :3])
+        dist[:, i + world_spheres.shape[1], :] = d + w_sphere[..., 3]
+
     return dist
-
-

@@ -22,47 +22,59 @@
 # DEALINGS IN THE SOFTWARE.#
 import torch
 import torch.nn as nn
+
 # import torch.nn.functional as F
 
-from ...differentiable_robot_model.coordinate_transform import CoordinateTransform, quaternion_to_matrix
+from ...differentiable_robot_model.coordinate_transform import (
+    CoordinateTransform,
+    quaternion_to_matrix,
+)
 
 from ...util_file import get_assets_path, join_path
 from ...geom.sdf.robot import RobotSphereCollision
 from .gaussian_projection import GaussianProjection
 
+
 class RobotSelfCollisionCost(nn.Module):
-    def __init__(self, weight=None, robot_params=None,
-                 gaussian_params={}, distance_threshold=-0.01, 
-                 batch_size=2, tensor_args={'device':torch.device('cpu'), 'dtype':torch.float32}):
+    def __init__(
+        self,
+        weight=None,
+        robot_params=None,
+        gaussian_params={},
+        distance_threshold=-0.01,
+        batch_size=2,
+        tensor_args={"device": torch.device("cpu"), "dtype": torch.float32},
+    ):
         super(RobotSelfCollisionCost, self).__init__()
         self.tensor_args = tensor_args
-        self.device = tensor_args['device']
-        self.float_dtype = tensor_args['dtype']
+        self.device = tensor_args["device"]
+        self.float_dtype = tensor_args["dtype"]
         self.distance_threshold = distance_threshold
         self.weight = torch.as_tensor(weight, **self.tensor_args)
-        
+
         self.proj_gaussian = GaussianProjection(gaussian_params=gaussian_params)
 
-
         # load robot model:
-        robot_collision_params = robot_params['robot_collision_params']
-        robot_collision_params['urdf'] = join_path(get_assets_path(),
-                                                   robot_collision_params['urdf'])
-
+        robot_collision_params = robot_params["robot_collision_params"]
+        robot_collision_params["urdf"] = join_path(
+            get_assets_path(), robot_collision_params["urdf"]
+        )
 
         # load nn params:
-        label_map = robot_params['world_collision_params']['label_map']
-        bounds = robot_params['world_collision_params']['bounds']
+        label_map = robot_params["world_collision_params"]["label_map"]
+        bounds = robot_params["world_collision_params"]["bounds"]
         self.distance_threshold = distance_threshold
         self.batch_size = batch_size
-        
+
         # initialize NN model:
-        self.coll = RobotSphereCollision(robot_collision_params, self.batch_size,
-                                         tensor_args=self.tensor_args)
+        self.coll = RobotSphereCollision(
+            robot_collision_params, self.batch_size, tensor_args=self.tensor_args
+        )
 
+        self.coll.build_batch_features(
+            batch_size=self.batch_size, clone_pose=True, clone_objs=True
+        )
 
-        self.coll.build_batch_features(batch_size=self.batch_size, clone_pose=True, clone_objs=True)
-        
         self.res = None
         self.t_mat = None
 
@@ -73,12 +85,14 @@ class RobotSelfCollisionCost(nn.Module):
         link_pos = link_pos_seq.view(batch_size * horizon, n_links, 3)
         link_rot = link_rot_seq.view(batch_size * horizon, n_links, 3, 3)
 
-        if(self.batch_size != batch_size):
+        if self.batch_size != batch_size:
             self.batch_size = batch_size
-            self.coll.build_batch_features(batch_size=self.batch_size * horizon, clone_pose=True, clone_objs=True)
-        
+            self.coll.build_batch_features(
+                batch_size=self.batch_size * horizon, clone_pose=True, clone_objs=True
+            )
+
         res = self.coll.check_self_collisions(link_pos, link_rot)
-        
+
         self.res = res
         res = res.view(batch_size, horizon, n_links)
         res = torch.max(res, dim=-1)[0]
@@ -88,9 +102,9 @@ class RobotSelfCollisionCost(nn.Module):
         batch_size = q.shape[0]
         horizon = q.shape[1]
         q = q.view(batch_size * horizon, q.shape[2])
-        
+
         res = self.coll.check_self_collisions_nn(q)
-        
+
         res = res.view(batch_size, horizon)
         res += self.distance_threshold
         res[res <= 0.0] = 0.0
@@ -100,11 +114,8 @@ class RobotSelfCollisionCost(nn.Module):
         # rescale:
         res = res / 0.25
 
-            
-        
         cost = res
-        
+
         cost = self.weight * self.proj_gaussian(cost)
 
         return cost
-    

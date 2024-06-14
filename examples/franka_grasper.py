@@ -283,13 +283,8 @@ def mpc_robot_interactive(args, gym_instance):
                     )
                     > 0.0
                 ):
-                    g_pos[0] = pose.p.x
-                    g_pos[1] = pose.p.y
-                    g_pos[2] = pose.p.z
-                    g_q[1] = pose.r.x
-                    g_q[2] = pose.r.y
-                    g_q[3] = pose.r.z
-                    g_q[0] = pose.r.w
+                    g_pos = [pose.p.x, pose.p.y, pose.p.z]
+                    g_q = [pose.r.w, pose.r.x, pose.r.y, pose.r.z]
 
                     mpc_control.update_params(goal_ee_pos=g_pos, goal_ee_quat=g_q)
             t_step += sim_dt

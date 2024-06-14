@@ -23,12 +23,7 @@
 
 import torch
 from torch import nn
-from torch.nn import (
-    Sequential as Seq, 
-    Linear as Lin, 
-    ReLU, 
-    ELU, 
-    ReLU6)
+from torch.nn import Sequential as Seq, Linear as Lin, ReLU, ELU, ReLU6
 from .network_macros import MLPRegression, scale_to_base, scale_to_net
 from ...util_file import get_weights_path, join_path
 

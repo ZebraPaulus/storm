@@ -22,42 +22,52 @@
 # DEALINGS IN THE SOFTWARE.#
 import torch
 import torch.nn as nn
+
 # import torch.nn.functional as F
 
 from .gaussian_projection import GaussianProjection
 
+
 class DistCost(nn.Module):
-    def __init__(self, weight=None, vec_weight=None, gaussian_params={}, device=torch.device('cpu'), float_dtype=torch.float32, **kwargs):
+    def __init__(
+        self,
+        weight=None,
+        vec_weight=None,
+        gaussian_params={},
+        device=torch.device("cpu"),
+        float_dtype=torch.float32,
+        **kwargs
+    ):
         super(DistCost, self).__init__()
         self.device = device
         self.float_dtype = float_dtype
         self.weight = torch.as_tensor(weight, device=device, dtype=float_dtype)
-        if(vec_weight is not None):
-            self.vec_weight = torch.as_tensor(vec_weight, device=device, dtype=float_dtype)
+        if vec_weight is not None:
+            self.vec_weight = torch.as_tensor(
+                vec_weight, device=device, dtype=float_dtype
+            )
         else:
             self.vec_weight = 1.0
         self.proj_gaussian = GaussianProjection(gaussian_params=gaussian_params)
-    
+
     def forward(self, disp_vec, dist_type="l2", beta=1.0, RETURN_GOAL_DIST=False):
         inp_device = disp_vec.device
         disp_vec = self.vec_weight * disp_vec.to(self.device)
 
-        if dist_type == 'l2':
-            dist = torch.norm(disp_vec, p=2, dim=-1,keepdim=False)
-        elif dist_type == 'squared_l2':
+        if dist_type == "l2":
+            dist = torch.norm(disp_vec, p=2, dim=-1, keepdim=False)
+        elif dist_type == "squared_l2":
 
-            dist = (torch.sum(torch.square(disp_vec), dim=-1,keepdim=False))
-        elif dist_type == 'l1':
-            dist = torch.norm(disp_vec, p=1, dim=-1,keepdim=False)
-        elif dist_type == 'smooth_l1':
+            dist = torch.sum(torch.square(disp_vec), dim=-1, keepdim=False)
+        elif dist_type == "l1":
+            dist = torch.norm(disp_vec, p=1, dim=-1, keepdim=False)
+        elif dist_type == "smooth_l1":
             l1_dist = torch.norm(disp_vec, p=1, dim=-1)
             dist = None
             raise NotImplementedError
 
         cost = self.weight * self.proj_gaussian(dist)
 
-        if(RETURN_GOAL_DIST):
+        if RETURN_GOAL_DIST:
             return cost.to(inp_device), dist.to(inp_device)
         return cost.to(inp_device)
-
-

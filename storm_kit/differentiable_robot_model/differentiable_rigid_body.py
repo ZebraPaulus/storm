@@ -24,7 +24,7 @@
 # **********************************************************************
 # The first version was licensed as "Original Source License"(see below).
 # Several enhancements and bug fixes were done at NVIDIA CORPORATION
-# since obtaining the first version. 
+# since obtaining the first version.
 #
 #
 #
@@ -71,12 +71,14 @@ class DifferentiableRigidBody(torch.nn.Module):
     Differentiable Representation of a link
     """
 
-    def __init__(self, rigid_body_params, tensor_args={'device':"cpu", 'dtype':torch.float32}):
+    def __init__(
+        self, rigid_body_params, tensor_args={"device": "cpu", "dtype": torch.float32}
+    ):
 
         super().__init__()
 
         self.tensor_args = tensor_args
-        self.device = tensor_args['device']
+        self.device = tensor_args["device"]
         self.joint_id = rigid_body_params["joint_id"]
         self.name = rigid_body_params["link_name"]
 
@@ -90,12 +92,11 @@ class DifferentiableRigidBody(torch.nn.Module):
         self.trans = rigid_body_params["trans"]
         self.rot_angles = rigid_body_params["rot_angles"].unsqueeze(0)
 
-        
-        roll = self.rot_angles[:,0]
-        pitch = self.rot_angles[:,1]
-        yaw = self.rot_angles[:,2]
+        roll = self.rot_angles[:, 0]
+        pitch = self.rot_angles[:, 1]
+        yaw = self.rot_angles[:, 2]
         self.fixed_rotation = (z_rot(yaw) @ y_rot(pitch)) @ x_rot(roll)
-        
+
         self.joint_limits = rigid_body_params["joint_limits"]
 
         # local joint axis (w.r.t. joint coordinate frame):
@@ -103,7 +104,7 @@ class DifferentiableRigidBody(torch.nn.Module):
         self.axis_idx = torch.nonzero(self.joint_axis.squeeze(0))
         if self.axis_idx.nelement() > 0:
             self.axis_idx = self.axis_idx[0]
-        
+
         if self.joint_axis[0, 0] == 1:
             self.axis_rot_fn = x_rot
         elif self.joint_axis[0, 1] == 1:
@@ -111,12 +112,12 @@ class DifferentiableRigidBody(torch.nn.Module):
         else:
             self.axis_rot_fn = z_rot
 
-        self.joint_pose = CoordinateTransform(tensor_args=tensor_args) #.to(device)
+        self.joint_pose = CoordinateTransform(tensor_args=tensor_args)  # .to(device)
         self.joint_pose.set_translation(torch.reshape(self.trans, (1, 3)))
         self._batch_size = -1
         self._batch_trans = None
         self._batch_rot = None
-        
+
         # local velocities and accelerations (w.r.t. joint coordinate frame):
         # in spatial vector terminology: linear velocity v
         self.joint_lin_vel = torch.zeros((1, 3), **self.tensor_args)
@@ -127,12 +128,13 @@ class DifferentiableRigidBody(torch.nn.Module):
         # in spatial vector terminology: angular acceleration wd
         self.joint_ang_acc = torch.zeros((1, 3), **self.tensor_args)
 
-        self.update_joint_state(torch.zeros((1, 1), **self.tensor_args), torch.zeros((1, 1), **self.tensor_args))
-
+        self.update_joint_state(
+            torch.zeros((1, 1), **self.tensor_args),
+            torch.zeros((1, 1), **self.tensor_args),
+        )
 
         # self.update_joint_acc(torch.zeros(1, 1).to(self.device, dtype=self.float_dtype))
         self.update_joint_acc(torch.zeros((1, 1), **self.tensor_args))
-
 
         self.pose = CoordinateTransform(tensor_args=self.tensor_args)
         # I have different vectors for angular/linear motion/force, but they usually always appear as a pair
@@ -153,23 +155,22 @@ class DifferentiableRigidBody(torch.nn.Module):
 
     def update_joint_state(self, q, qd):
         batch_size = q.shape[0]
-            
+
         self.joint_ang_vel = qd @ self.joint_axis
 
-
-        if(batch_size != self._batch_size):
-            #print('calling once', self._batch_size, batch_size)
+        if batch_size != self._batch_size:
+            # print('calling once', self._batch_size, batch_size)
             self._batch_size = batch_size
-            self._batch_trans = self.trans.unsqueeze(0).repeat(self._batch_size,1)
+            self._batch_trans = self.trans.unsqueeze(0).repeat(self._batch_size, 1)
             self._batch_rot = self.fixed_rotation.repeat(self._batch_size, 1, 1)
-            
+
         # when we update the joint angle, we also need to update the transformation
-        
-        self.joint_pose.set_translation(self._batch_trans)#
-        #self.joint_pose.set_translation(torch.reshape(self.trans, (1, 3)))
-        #print(q.shape)
+
+        self.joint_pose.set_translation(self._batch_trans)  #
+        # self.joint_pose.set_translation(torch.reshape(self.trans, (1, 3)))
+        # print(q.shape)
         rot = self.axis_rot_fn(q.squeeze(1))
-        
+
         self.joint_pose.set_rotation(self._batch_rot @ rot)
         return
 
@@ -216,7 +217,13 @@ class LearnableRigidBody(DifferentiableRigidBody):
 
     """
 
-    def __init__(self, learnable_rigid_body_config, gt_rigid_body_params, device="cpu", float_dtype=torch.float32):
+    def __init__(
+        self,
+        learnable_rigid_body_config,
+        gt_rigid_body_params,
+        device="cpu",
+        float_dtype=torch.float32,
+    ):
 
         super().__init__(rigid_body_params=gt_rigid_body_params, device=device)
 
@@ -236,7 +243,9 @@ class LearnableRigidBody(DifferentiableRigidBody):
             self.com_fn = lambda: self.com
 
         if "inertia_mat" in learnable_rigid_body_config.learnable_dynamics_params:
-            self.inertia_mat_fn = hydra.utils.instantiate(learnable_rigid_body_config.inertia_parametrization)
+            self.inertia_mat_fn = hydra.utils.instantiate(
+                learnable_rigid_body_config.inertia_parametrization
+            )
         else:
             self.inertia_mat_fn = lambda: self.inertia_mat
 

@@ -93,7 +93,7 @@ def build_int_matrix(
 def tensor_step_jerk(
     state, act, state_seq, dt_h, n_dofs, integrate_matrix, fd_matrix=None
 ):
-    # type: (Tensor, Tensor, Tensor, Tensor, int, Tensor, type.Optional[Tensor]) -> Tensor
+    # type= (Tensor, Tensor, Tensor, Tensor, int, Tensor, type.Optional[Tensor]) -> Tensor
 
     # This is batch,n_dof
     q = state[:, :n_dofs]
@@ -123,7 +123,7 @@ def euler_integrate(q_0, u, diag_dt, integrate_matrix):
 def tensor_step_acc(
     state, act, state_seq, dt_h, n_dofs, integrate_matrix, fd_matrix=None
 ):
-    # type: (Tensor, Tensor, Tensor, Tensor, int, Tensor, Optional[Tensor]) -> Tensor
+    # type= (Tensor, Tensor, Tensor, Tensor, int, Tensor, Optional[Tensor]) -> Tensor
     # This is batch,n_dof
     q = state[:, :n_dofs]
     qd = state[:, n_dofs : 2 * n_dofs]
@@ -140,7 +140,7 @@ def tensor_step_acc(
 
 # @torch.jit.script
 def tensor_step_vel(state, act, state_seq, dt_h, n_dofs, integrate_matrix, fd_matrix):
-    # type: (Tensor, Tensor, Tensor, Tensor, int, Tensor, Tensor) -> Tensor
+    # type= (Tensor, Tensor, Tensor, Tensor, int, Tensor, Tensor) -> Tensor
 
     # This is batch,n_dof
     q = state[:, :n_dofs]
@@ -159,7 +159,7 @@ def tensor_step_vel(state, act, state_seq, dt_h, n_dofs, integrate_matrix, fd_ma
 
 # @torch.jit.script
 def tensor_step_pos(state, act, state_seq, dt_h, n_dofs, integrate_matrix, fd_matrix):
-    # type: (Tensor, Tensor, Tensor, Tensor, int, Tensor, Tensor) -> Tensor
+    # type= (Tensor, Tensor, Tensor, Tensor, int, Tensor, Tensor) -> Tensor
 
     # This is batch,n_dof
     q = state[:, :n_dofs]

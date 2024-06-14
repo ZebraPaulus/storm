@@ -22,54 +22,66 @@
 import os
 import yaml
 
+
 # get paths
 def get_module_path():
     path = os.path.dirname(__file__)
     return path
 
+
 def get_root_path():
     path = os.path.dirname(get_module_path())
     return path
 
+
 def get_content_path():
     root_path = get_root_path()
-    path = os.path.join(root_path,'content')
+    path = os.path.join(root_path, "content")
     return path
+
 
 def get_configs_path():
     content_path = get_content_path()
-    path = os.path.join(content_path,'configs')
+    path = os.path.join(content_path, "configs")
     return path
+
+
 def get_assets_path():
     content_path = get_content_path()
-    path = os.path.join(content_path,'assets')
+    path = os.path.join(content_path, "assets")
     return path
+
 
 def get_weights_path():
     content_path = get_root_path()
-    path = os.path.join(content_path,'weights')
+    path = os.path.join(content_path, "weights")
     return path
 
-def join_path(path1,path2):
-    return os.path.join(path1,path2)
+
+def join_path(path1, path2):
+    return os.path.join(path1, path2)
+
 
 def load_yaml(file_path):
     with open(file_path) as file:
         yaml_params = yaml.load(file, Loader=yaml.FullLoader)
     return yaml_params
 
+
 # get paths for urdf
 def get_urdf_path():
     content_path = get_content_path()
-    path = os.path.join(content_path,'assets','urdf')
+    path = os.path.join(content_path, "assets", "urdf")
     return path
+
 
 def get_gym_configs_path():
     config_path = get_configs_path()
-    path = os.path.join(config_path, 'gym')
+    path = os.path.join(config_path, "gym")
     return path
+
 
 def get_mpc_configs_path():
     config_path = get_configs_path()
-    path = os.path.join(config_path, 'mpc')
+    path = os.path.join(config_path, "mpc")
     return path

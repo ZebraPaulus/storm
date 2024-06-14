@@ -22,11 +22,13 @@
 # DEALINGS IN THE SOFTWARE.#
 import torch
 
+
 def find_first_idx(array, value):
     f_idx = torch.nonzero(array > value, as_tuple=False)[0].item()
     return f_idx
 
+
 def find_last_idx(array, value):
-    print(array,value)
+    print(array, value)
     f_idx = torch.nonzero(array <= value, as_tuple=False)[-1].item()
     return f_idx

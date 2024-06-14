@@ -24,7 +24,7 @@
 # **********************************************************************
 # The first version was licensed as "Original Source License"(see below).
 # Several enhancements and bug fixes were done at NVIDIA CORPORATION
-# since obtaining the first version. 
+# since obtaining the first version.
 #
 #
 #
@@ -67,6 +67,7 @@ from functools import reduce
 prod = lambda l: reduce(operator.mul, l, 1)
 torch.set_default_tensor_type(torch.DoubleTensor)
 
+
 def cross_product(vec3a, vec3b):
     vec3a = convert_into_at_least_2d_pytorch_tensor(vec3a)
     vec3b = convert_into_at_least_2d_pytorch_tensor(vec3b)
@@ -107,13 +108,15 @@ def exp_map_so3(omega, epsilon=1.0e-14):
     omegahat = vector3_to_skew_symm_matrix(omega).squeeze()
 
     norm_omega = torch.norm(omega, p=2)
-    exp_omegahat = (torch.eye(3) +
-                    ((torch.sin(norm_omega) / (norm_omega + epsilon)) * omegahat) +
-                    (((1.0 - torch.cos(norm_omega)) / (torch_square(norm_omega + epsilon))) *
-                     (omegahat @ omegahat))
-                    )
+    exp_omegahat = (
+        torch.eye(3)
+        + ((torch.sin(norm_omega) / (norm_omega + epsilon)) * omegahat)
+        + (
+            ((1.0 - torch.cos(norm_omega)) / (torch_square(norm_omega + epsilon)))
+            * (omegahat @ omegahat)
+        )
+    )
     return exp_omegahat
-
 
 
 def convert_into_pytorch_tensor(variable):
@@ -131,4 +134,3 @@ def convert_into_at_least_2d_pytorch_tensor(variable):
         return tensor_var.unsqueeze(0)
     else:
         return tensor_var
-

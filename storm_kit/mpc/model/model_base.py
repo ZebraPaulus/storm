@@ -22,23 +22,24 @@
 # DEALINGS IN THE SOFTWARE.#
 from abc import ABC, abstractmethod
 
+
 class DynamicsModelBase(ABC):
     def __init__(self):
         pass
 
-    #@abstractmethod
-    #def step(self, state, act):
+    # @abstractmethod
+    # def step(self, state, act):
     #    pass
-    
+
     @abstractmethod
     def rollout_open_loop(self, start_state, act_seq):
         pass
-        
-    #Rendering
-    #def render(self):
+
+    # Rendering
+    # def render(self):
     #    pass
-    
-    #def render_trajs(self, trajectories):
+
+    # def render_trajs(self, trajectories):
     #    pass
 
     @abstractmethod

@@ -24,7 +24,7 @@
 # **********************************************************************
 # The first version was licensed as "Original Source License"(see below).
 # Several enhancements and bug fixes were done at NVIDIA CORPORATION
-# since obtaining the first version. 
+# since obtaining the first version.
 #
 #
 #
@@ -51,5 +51,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.#
-from .differentiable_robot_model import (DifferentiableRobotModel,
-                                         LearnableRigidBodyConfig)
+from .differentiable_robot_model import (
+    DifferentiableRobotModel,
+    LearnableRigidBodyConfig,
+)

@@ -40,9 +40,9 @@ world_model:
         dims: [0.5, 0.99, 0.05] # x, y, z
         pose: [0.373, 0.373, -0.025, 0.0, 0.0, 0.3826834, 0.9238795] # x, y, z, qx, qy, qz, qw
       # Walls
-      wall_left: 
+      wall_left:
         dims: [2.0, 0.05, 2.0] # x, y, z
-        pose: [0.65, -0.325, 0.95, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw  
+        pose: [0.65, -0.325, 0.95, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw
         color:
           r: 0.3
           g: 0.3
@@ -54,4 +54,3 @@ world_model:
           r: 0.3
           g: 0.3
           b: 0.3
-          

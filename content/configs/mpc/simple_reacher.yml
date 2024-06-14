@@ -26,8 +26,8 @@ use_cuda: True
 cuda_device_num: 0
 
 control_dt: 0.1
-control_space: 'acc'
-float_dtype: 'float32'
+control_space: "acc"
+float_dtype: "float32"
 state_filter_coeff: 1.0
 cmd_filter_coeff: 1.0
 
@@ -44,71 +44,69 @@ model:
     base_dt: 0.1
     base_ratio: 1.0
     max_dt: 0.3
-  init_state: [0.0,0.0]
-  position_bounds: [[0.0, 0.5], [0.0,0.5]]
-  
+  init_state: [0.0, 0.0]
+  position_bounds: [[0.0, 0.5], [0.0, 0.5]]
+
 cost:
   goal_state:
     vec_weight: [1.0, 1.0]
     weight: 100.0
-    gaussian_params: {'n':0, 'c':0.2, 's':0.0, 'r':10.0}
-    
+    gaussian_params: { "n": 0, "c": 0.2, "s": 0.0, "r": 10.0 }
 
   zero_vel:
     weight: 0.0
     hinge_val: 0.2 #0.2
-    gaussian_params: {'n':0, 'c':0.2, 's':0, 'r':1.0}
-    
+    gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 1.0 }
+
   stop_cost:
     weight: 100.0
     max_nlimit: 0.05 #0.2
-    gaussian_params: {'n':0, 'c':0.2, 's':0, 'r':10.0}
+    gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 10.0 }
   stop_cost_acc:
     weight: 100.0
     max_limit: 0.01 #0.2
-    gaussian_params: {'n':0, 'c':0.2, 's':0, 'r':10.0}
-    
-  
+    gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 10.0 }
+
   smooth: # on robot acceleration
-    weight: 0.0 
-    gaussian_params: {'n':0, 'c':0.2, 's':0, 'r':1.0}
+    weight: 0.0
+    gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 1.0 }
     order: 3 # on velocity
 
-    
   image_collision: # on robot acceleration
-    weight: 1000.0 
-    gaussian_params: {'n':0, 'c':1.0, 's':0, 'r':10.0}
-    collision_file: 'collision_maps/collision_map_cem.png'
+    weight: 1000.0
+    gaussian_params: { "n": 0, "c": 1.0, "s": 0, "r": 10.0 }
+    collision_file: "collision_maps/collision_map_cem.png"
     dist_thresh: 0.01
   state_bound:
-    weight: 100.0 
-    gaussian_params: {'n':0, 'c':1.0, 's':0, 'r':10.0}
+    weight: 100.0
+    gaussian_params: { "n": 0, "c": 1.0, "s": 0, "r": 10.0 }
   terminal:
     weight: 0.0
-    gaussian_params: {'n':0, 'c':1.0, 's':0, 'r':10.0}
+    gaussian_params: { "n": 0, "c": 1.0, "s": 0, "r": 10.0 }
 mppi:
-  horizon           : 30 # 100
-  init_cov          : 0.01 #.5
-  gamma             : 0.98 #
-  n_iters           : 1
-  step_size_mean    : 0.9
-  step_size_cov     : 0.6
-  beta              : 1.0
-  alpha             : 1
-  num_particles     : 500 #10000
-  update_cov        : True
-  cov_type          : 'diag_AxA' # 
-  kappa             : 0.0001
-  null_act_frac     : 0.01
-  sample_mode       : 'mean'
-  base_action       : 'repeat'
-  squash_fn         : 'clamp' # [clamp,]
-  hotstart          : True
-  visual_traj       : 'state_seq'
+  horizon: 30 # 100
+  init_cov: 0.01 #.5
+  gamma: 0.98 #
+  n_iters: 1
+  step_size_mean: 0.9
+  step_size_cov: 0.6
+  beta: 1.0
+  alpha: 1
+  num_particles: 500 #10000
+  update_cov: True
+  cov_type: "diag_AxA" #
+  kappa: 0.0001
+  null_act_frac: 0.01
+  sample_mode: "mean"
+  base_action: "repeat"
+  squash_fn: "clamp" # [clamp,]
+  hotstart: True
+  visual_traj: "state_seq"
   sample_params:
-    type: 'multiple'
+    type: "multiple"
     fixed_samples: True
-    sample_ratio: {'halton':0.0, 'halton-knot':1.0, 'random':0.0, 'random-knot':0.0}
+    sample_ratio:
+      { "halton": 0.0, "halton-knot": 1.0, "random": 0.0, "random-knot": 0.0 }
     seed: 0
     filter_coeffs: None #[0.5, 0.3, 0.2]
     knot_scale: 5

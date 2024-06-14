@@ -32,52 +32,54 @@ import torch.autograd.profiler as profiler
 class Controller(ABC):
     """Base class for sampling based controllers."""
 
-    def __init__(self,
-                 d_action,
-                 action_lows,
-                 action_highs,
-                 horizon,
-                 gamma,
-                 n_iters,
-                 rollout_fn=None,
-                 sample_mode='mean',
-                 hotstart=True,
-                 seed=0,
-                 tensor_args={'device':torch.device('cpu'), 'dtype':torch.float32}):
+    def __init__(
+        self,
+        d_action,
+        action_lows,
+        action_highs,
+        horizon,
+        gamma,
+        n_iters,
+        rollout_fn=None,
+        sample_mode="mean",
+        hotstart=True,
+        seed=0,
+        tensor_args={"device": torch.device("cpu"), "dtype": torch.float32},
+    ):
         """
-        Defines an abstract base class for 
+        Defines an abstract base class for
         sampling based MPC algorithms.
 
-        Implements the optimize method that is called to 
+        Implements the optimize method that is called to
         generate an action sequence for a given state and
         is common across sampling based controllers
 
         Attributes:
-        
+
         d_action : int
             size of action space
-        action_lows : torch.Tensor 
+        action_lows : torch.Tensor
             lower limits for each action dim
-        action_highs : torch.Tensor  
+        action_highs : torch.Tensor
             upper limits for each action dim
-        horizon : int  
+        horizon : int
             horizon of rollouts
         gamma : float
             discount factor
-        n_iters : int  
+        n_iters : int
             number of optimization iterations per MPC call
-        rollout_fn : function handle  
+        rollout_fn : function handle
             rollout policy (or actions) in simulator
             and return states and costs for updating MPC
             distribution
-        sample_mode : {'mean', 'sample'}  
+        sample_mode : {'mean', 'sample'}
             how to choose action to be executed
-            'mean' plays the first mean action and  
+            'mean' plays the first mean action and
             'sample' samples from the distribution
         hotstart : bool
             If true, the solution from previous step
             is used to warm start current step
-        seed : int  
+        seed : int
             seed value
         device: torch.device
             controller can run on both cpu and gpu
@@ -91,7 +93,9 @@ class Controller(ABC):
         self.horizon = horizon
         self.gamma = gamma
         self.n_iters = n_iters
-        self.gamma_seq = torch.cumprod(torch.tensor([1.0] + [self.gamma] * (horizon - 1)),dim=0).reshape(1, horizon)
+        self.gamma_seq = torch.cumprod(
+            torch.tensor([1.0] + [self.gamma] * (horizon - 1)), dim=0
+        ).reshape(1, horizon)
         self.gamma_seq = self.gamma_seq.to(**self.tensor_args)
         self._rollout_fn = rollout_fn
         self.sample_mode = sample_mode
@@ -99,42 +103,41 @@ class Controller(ABC):
         self.hotstart = hotstart
         self.seed_val = seed
         self.trajectories = None
-        
+
     @abstractmethod
-    def _get_action_seq(self, mode='mean'):
+    def _get_action_seq(self, mode="mean"):
         """
         Get action sequence to execute on the system based
         on current control distribution
-        
-        Args:
-            mode : {'mean', 'sample'}  
-                how to choose action to be executed
-                'mean' plays mean action and  
-                'sample' samples from the distribution
-        """        
-        pass
 
+        Args:
+            mode : {'mean', 'sample'}
+                how to choose action to be executed
+                'mean' plays mean action and
+                'sample' samples from the distribution
+        """
+        pass
 
     def sample_actions(self):
         """
         Sample actions from current control distribution
         """
-        raise NotImplementedError('sample_actions funtion not implemented')
-    
+        raise NotImplementedError("sample_actions funtion not implemented")
+
     @abstractmethod
     def _update_distribution(self, trajectories):
         """
-        Update current control distribution using 
+        Update current control distribution using
         rollout trajectories
-        
+
         Args:
             trajectories : dict
                 Rollout trajectories. Contains the following fields
                 observations : torch.tensor
                     observations along rollouts
-                actions : torch.tensor 
+                actions : torch.tensor
                     actions sampled from control distribution along rollouts
-                costs : torch.tensor 
+                costs : torch.tensor
                     step costs along rollouts
         """
         pass
@@ -161,7 +164,7 @@ class Controller(ABC):
     @abstractmethod
     def _calc_val(self, cost_seq, act_seq):
         """
-        Calculate value of state given 
+        Calculate value of state given
         rollouts from a policy
         """
         pass
@@ -172,16 +175,15 @@ class Controller(ABC):
         Returns False by default
         """
         return False
-        
+
     # @property
     # def set_sim_state_fn(self):
     #     return self._set_sim_state_fn
-    
-    
+
     # @set_sim_state_fn.setter
     # def set_sim_state_fn(self, fn):
     #     """
-    #     Set function that sets the simulation 
+    #     Set function that sets the simulation
     #     environment to a particular state
     #     """
     #     self._set_sim_state_fn = fn
@@ -189,15 +191,15 @@ class Controller(ABC):
     @property
     def rollout_fn(self):
         return self._rollout_fn
-    
+
     @rollout_fn.setter
     def rollout_fn(self, fn):
         """
-        Set the rollout function from 
+        Set the rollout function from
         input function pointer
         """
         self._rollout_fn = fn
-    
+
     @abstractmethod
     def generate_rollouts(self, state):
         pass
@@ -210,11 +212,11 @@ class Controller(ABC):
         ----------
         state : torch.Tensor
             state to calculate optimal action from
-        
+
         calc_val : bool
             If true, calculate the optimal value estimate
             of the state along with action
-                
+
         Returns
         -------
         action : torch.Tensor
@@ -237,7 +239,6 @@ class Controller(ABC):
             self._shift(shift_steps)
         else:
             self.reset_distribution()
-            
 
         with torch.cuda.amp.autocast(enabled=True):
             with torch.no_grad():
@@ -248,16 +249,16 @@ class Controller(ABC):
                     # update distribution parameters
                     with profiler.record_function("mppi_update"):
                         self._update_distribution(trajectory)
-                    info['rollout_time'] += trajectory['rollout_time']
+                    info["rollout_time"] += trajectory["rollout_time"]
 
                     # check if converged
                     if self.check_convergence():
                         break
         self.trajectories = trajectory
-        #calculate best action
+        # calculate best action
         # curr_action = self._get_next_action(state, mode=self.sample_mode)
         curr_action_seq = self._get_action_seq(mode=self.sample_mode)
-        #calculate optimal value estimate if required
+        # calculate optimal value estimate if required
         value = 0.0
         if calc_val:
             trajectories = self.generate_rollouts(state)
@@ -269,7 +270,7 @@ class Controller(ABC):
         # else:
         #     self.reset_distribution()
 
-        info['entropy'].append(self.entropy)
+        info["entropy"].append(self.entropy)
 
         self.num_steps += 1
 
@@ -277,8 +278,8 @@ class Controller(ABC):
 
     def get_optimal_value(self, state):
         """
-        Calculate optimal value of a state, i.e 
-        value under optimal policy. 
+        Calculate optimal value of a state, i.e
+        value under optimal policy.
 
         Parameters
         ----------
@@ -289,14 +290,10 @@ class Controller(ABC):
         value : float
             optimal value estimate of the state
         """
-        self.reset() #reset the control distribution
+        self.reset()  # reset the control distribution
         _, value = self.optimize(state, calc_val=True, shift_steps=0)
         return value
-    
+
     # def seed(self, seed=None):
     #     self.np_random, seed = seeding.np_random(seed)
     #     return seed
-
-
-
-
