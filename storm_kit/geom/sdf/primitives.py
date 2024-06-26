@@ -137,7 +137,7 @@ def jit_sdf_pt_to_sphere(sphere_pt, sphere_radius, query_pt):
 
 @torch.jit.script
 def get_pt_primitive_distance(w_pts, world_spheres, world_cubes, dist):
-    # type= (Tensor, Tensor, List[List[Tensor]], Tensor) -> Tensor
+    # type: (torch.Tensor, torch.Tensor, list[list[torch.Tensor]], torch.Tensor) -> torch.Tensor
 
     for i in range(world_spheres.shape[1]):
         # compute distance between w_pts and sphere:
