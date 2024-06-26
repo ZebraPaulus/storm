@@ -184,9 +184,13 @@ class World(object):
                     rgb = [c["r"], c["g"], c["b"], 0.2]
                 except:
                     rgb = color
-                self.add_table(dims, pose, color=rgb)
+                try:
+                    name = cube[obj]["name"]
+                except:
+                    name = "table"
+                self.add_table(dims, pose, color=rgb, name=name)
 
-    def add_table(self, table_dims, table_pose, color=[1.0, 0.0, 0.0]):
+    def add_table(self, table_dims, table_pose, color=[1.0, 0.0, 0.0], name="table"):
 
         table_dims = gymapi.Vec3(table_dims[0], table_dims[1], table_dims[2])
 
@@ -204,7 +208,7 @@ class World(object):
 
         table_pose = self.robot_pose * pose
         table_handle = self.gym.create_actor(
-            self.env_ptr, table_asset, table_pose, "table", 2, 1, self.ENV_SEG_LABEL
+            self.env_ptr, table_asset, table_pose, name, 2, 1, self.ENV_SEG_LABEL
         )
         self.gym.set_rigid_body_color(
             self.env_ptr, table_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, obj_color
