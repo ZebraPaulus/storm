@@ -31,7 +31,7 @@
   </joint>
 
   <joint name="rx_joint" type="revolute">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0 0 0" rpy="1.57079 0 0" />
     <parent link="rx" />
     <child link="ry" />
     <axis xyz="1 0 0" />

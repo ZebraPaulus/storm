@@ -178,77 +178,93 @@ def mpc_robot_interactive(args, gym_instance):
     mpc_tensor_dtype = {"device": device, "dtype": torch.float32}
 
     # Franka initial state:
-    franka_bl_state = np.array(
-        [-0.3, 0.3, 0.2, -2.0, 0.0, 2.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    )
-    x_des_list = [franka_bl_state]
 
     ee_error = 10.0
     j = 0
     t_step = 0
     i = 0
-    x_des = x_des_list[0]
 
-    mpc_control.update_params(goal_state=x_des)
+    mpc_control.update_params(
+        goal_state=np.array(
+            # [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,    # joint angles
+            [
+                -0.3,
+                0.3,
+                0.2,
+                -2.0,
+                0.0,
+                2.4,
+                0.0,  # joint angles
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+            ]  # joint velocities
+        )
+    )
 
     # spawn object:
-    x, y, z = 0.0, 0.0, 0.0
-    tray_color = gymapi.Vec3(0.8, 0.1, 0.1)
     asset_options = gymapi.AssetOptions()
     asset_options.armature = 0.001
     asset_options.fix_base_link = True
     asset_options.thickness = 0.002
 
-    object_pose = gymapi.Transform()
-    object_pose.p = gymapi.Vec3(x, y, z)
-    object_pose.r = gymapi.Quat(0, 0, 0, 1)
-
-    obj_asset_file = "urdf/ball/movable_ball.urdf"
-    obj_asset_root = get_assets_path()
-
     if vis_ee_target:
-        target_object = world_instance.spawn_object(
-            obj_asset_file,
+        obj_asset_root = get_assets_path()
+
+        goal_pose = np.ravel(
+            mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy()
+        )
+        object_pose = gymapi.Transform()
+        object_pose.p = gymapi.Vec3(goal_pose[0], goal_pose[1], goal_pose[2])
+        object_pose.r = gymapi.Quat(0, 0, 0, 1)
+
+        # ball in end effector:
+        ee_handle = world_instance.spawn_object(
+            "urdf/ball/ball.urdf",
             obj_asset_root,
             object_pose,
-            color=tray_color,
+            name="ee_current_as_ball",
+        )
+        ee_body_handle = gym.get_actor_rigid_body_handle(env_ptr, ee_handle, 0)
+        gym.set_rigid_body_color(
+            env_ptr,
+            ee_handle,
+            0,
+            gymapi.MESH_VISUAL_AND_COLLISION,
+            gymapi.Vec3(0, 0.8, 0),
+        )
+
+        # moving ball:
+        object_pose.r = gymapi.Quat(0, -0.7071068, 0, 0.7071068)
+
+        target_object = world_instance.spawn_object(
+            "urdf/ball/movable_ball.urdf",
+            obj_asset_root,
+            object_pose,
             name="ee_target_object",
         )
-        obj_base_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 0)
+
+        tray_color = gymapi.Vec3(0.8, 0.1, 0.1)
+
+        # obj_base_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 0)
+        # gym.set_rigid_body_color(
+        #     env_ptr, target_object, 0, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
+        # )
+        # the moving ball
         obj_body_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 6)
-        gym.set_rigid_body_color(
-            env_ptr, target_object, 0, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
-        )
         gym.set_rigid_body_color(
             env_ptr, target_object, 6, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
         )
 
-        obj_asset_file = "urdf/ball/ball.urdf"
-        obj_asset_root = get_assets_path()
-
-        ee_handle = world_instance.spawn_object(
-            obj_asset_file,
-            obj_asset_root,
-            object_pose,
-            color=tray_color,
-            name="ee_current_as_ball",
-        )
-        ee_body_handle = gym.get_actor_rigid_body_handle(env_ptr, ee_handle, 0)
-        tray_color = gymapi.Vec3(0.0, 0.8, 0.0)
-        gym.set_rigid_body_color(
-            env_ptr, ee_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
-        )
-
-    g_pos = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
-
-    g_q = np.ravel(mpc_control.controller.rollout_fn.goal_ee_quat.cpu().numpy())
-    object_pose.p = gymapi.Vec3(g_pos[0], g_pos[1], g_pos[2])
-
-    object_pose.r = gymapi.Quat(g_q[1], g_q[2], g_q[3], g_q[0])
-    object_pose = w_T_r * object_pose
-    if vis_ee_target:
-        gym.set_rigid_transform(env_ptr, obj_base_handle, object_pose)
-    n_dof = mpc_control.controller.rollout_fn.dynamics_model.n_dofs
+    # object_pose = w_T_r * object_pose
+    # some weird rotation
+    # if vis_ee_target:
+    #     gym.set_rigid_transform(env_ptr, obj_base_handle, object_pose)
+    # n_dof = mpc_control.controller.rollout_fn.dynamics_model.n_dofs
     # prev_acc = np.zeros(n_dof)
     ee_pose = gymapi.Transform()
     w_robot_coord = CoordinateTransform(
@@ -265,8 +281,16 @@ def mpc_robot_interactive(args, gym_instance):
     # qd_des = None
     t_step = gym_instance.get_sim_time()
 
-    g_pos = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
+    goal_pose = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
     g_q = np.ravel(mpc_control.controller.rollout_fn.goal_ee_quat.cpu().numpy())
+
+    # region target control
+    gym_instance
+
+    pp = gymapi.PlaneParams()
+    pp.normal = gymapi.Vec3(0, 1, 0)
+    pp.distance = 0.8
+    gym.add_ground(sim, pp)
 
     while i > -100:
         try:
@@ -276,17 +300,17 @@ def mpc_robot_interactive(args, gym_instance):
                 pose = copy.deepcopy(w_T_r.inverse() * pose)
 
                 if np.linalg.norm(
-                    g_pos - np.ravel([pose.p.x, pose.p.y, pose.p.z])
+                    goal_pose - np.ravel([pose.p.x, pose.p.y, pose.p.z])
                 ) > 0.00001 or (
                     np.linalg.norm(
                         g_q - np.ravel([pose.r.w, pose.r.x, pose.r.y, pose.r.z])
                     )
-                    > 0.0
+                    > 0.00001
                 ):
-                    g_pos = [pose.p.x, pose.p.y, pose.p.z]
+                    goal_pose = [pose.p.x, pose.p.y, pose.p.z]
                     g_q = [pose.r.w, pose.r.x, pose.r.y, pose.r.z]
 
-                    mpc_control.update_params(goal_ee_pos=g_pos, goal_ee_quat=g_q)
+                    mpc_control.update_params(goal_ee_pos=goal_pose, goal_ee_quat=g_q)
             t_step += sim_dt
 
             current_robot_state = copy.deepcopy(robot_sim.get_state(env_ptr, robot_ptr))

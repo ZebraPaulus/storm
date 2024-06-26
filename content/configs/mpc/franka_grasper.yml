@@ -99,9 +99,10 @@ cost:
     vec_weight: [1.0, 1.0, 1.0] #, 0.0, 0.0, 0.0]
     gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 5.0 }
 
+  # cost for reaching desired position and orientation
   goal_pose:
-    vec_weight: [1.0, 1.0, 0.0, 1.0, 1.0, 1.0]
-    weight: [0.0, 100.0]
+    vec_weight: [0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+    weight: [20.0, 100.0]
     position_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     orientation_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     hinge_val: -1
@@ -111,6 +112,7 @@ cost:
     weight: 0.0
     gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 5.0 }
 
+  # cost for preserving mobility in all axis
   manipulability:
     weight: 30.0 #100.0 #0.05 #0.5 #1.0
     gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 10.0 }
@@ -142,14 +144,15 @@ cost:
     gaussian_params: { "n": 0, "c": 0.2, "s": 0, "r": 10.0 }
     order: 1
 
+  # cost for keeping the robot within the joint limits
   state_bound:
     weight: 1000.0
     gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 10.0 }
-    bound_thresh: 0.05
+    bound_thresh: 0.05 # threshold around joint limits
 
-  stop_cost:
+  stop_cost: # something with velocities above a limit
     weight: 20.0
-    max_nlimit: 1.5 #0.2
+    max_nlimit: 1.5 #0.2 # dynamic limit
     gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 1.0 }
 
   stop_cost_acc:
