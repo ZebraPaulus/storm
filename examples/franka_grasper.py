@@ -25,6 +25,7 @@
 """
 import copy
 from isaacgym import gymapi
+debug = True
 
 # from isaacgym import gymutil
 
@@ -79,9 +80,6 @@ from storm_kit.differentiable_robot_model.coordinate_transform import (
 from storm_kit.mpc.task.reacher_task import ReacherTask
 
 np.set_printoptions(precision=2)
-
-# from franka_motion_control import FrankaMotionControl
-
 
 def mpc_robot_interactive(args, gym_instance):
     vis_ee_target = True
@@ -292,6 +290,11 @@ def mpc_robot_interactive(args, gym_instance):
     pp.distance = 0.8
     gym.add_ground(sim, pp)
 
+    # ROS
+    if debug == False:
+        from storm_kit.robot_interface.joint_states import MPCRobotController
+        lab_controller = MPCRobotController()
+
     while i > -100:
         try:
             gym_instance.step()
@@ -313,7 +316,12 @@ def mpc_robot_interactive(args, gym_instance):
                     mpc_control.update_params(goal_ee_pos=goal_pose, goal_ee_quat=g_q)
             t_step += sim_dt
 
-            current_robot_state = copy.deepcopy(robot_sim.get_state(env_ptr, robot_ptr))
+            # print(current_robot_state)
+            if debug == False:
+                current_robot_state = lab_controller.get_current_joint_state()
+                
+            else:
+                current_robot_state = copy.deepcopy(robot_sim.get_state(env_ptr, robot_ptr))
 
             command = mpc_control.get_command(
                 t_step, current_robot_state, control_dt=sim_dt, WAIT=True
@@ -352,9 +360,11 @@ def mpc_robot_interactive(args, gym_instance):
                 gym.set_rigid_transform(env_ptr, ee_body_handle, copy.deepcopy(ee_pose))
 
             print(
+                "\r",
                 ["{:.3f}".format(x) for x in ee_error],
                 "{:.3f}".format(mpc_control.opt_dt),
                 "{:.3f}".format(mpc_control.mpc_dt),
+                end="",   # overwriting the line
             )
 
             gym_instance.clear_lines()
@@ -383,6 +393,8 @@ def mpc_robot_interactive(args, gym_instance):
             # done = True
             break
     mpc_control.close()
+    if debug == False:
+        lab_controller.close()
     return 1
 
 
@@ -393,7 +405,11 @@ if __name__ == "__main__":
     parser.add_argument("--robot", type=str, default="franka", help="Robot to spawn")
     parser.add_argument("--cuda", action="store_true", default=True, help="use cuda")
     parser.add_argument(
-        "--headless", action="store_true", default=False, help="headless gym"
+        "--headless",
+        action="store_true",
+        default=False,
+        help="headless gym",
+        dest="headless",
     )
     parser.add_argument(
         "--control_space", type=str, default="acc", help="Robot to spawn"
