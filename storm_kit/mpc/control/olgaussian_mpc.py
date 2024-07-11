@@ -335,7 +335,7 @@ class OLGaussianMPC(Controller):
             self.cov_action = self.init_cov_action
             self.scale_tril = matrix_cholesky(
                 self.cov_action
-            )  # torch.cholesky(self.cov_action)
+            )
             self.inv_cov_action = torch.cholesky_inverse(self.scale_tril)
 
         elif self.cov_type == "full_HAxHA":
@@ -346,7 +346,7 @@ class OLGaussianMPC(Controller):
             )
 
             self.cov_action = self.init_cov_action
-            self.scale_tril = torch.cholesky(self.cov_action)
+            self.scale_tril = torch.linalg.cholesky(self.cov_action)
             self.inv_cov_action = torch.cholesky_inverse(self.scale_tril)
 
         else:

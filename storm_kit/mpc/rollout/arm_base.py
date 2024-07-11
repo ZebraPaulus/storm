@@ -228,7 +228,7 @@ class ArmBase(RolloutBase):
         J_full = torch.cat((lin_jac_batch, ang_jac_batch), dim=-2)
 
         # null-space cost
-        # if self.exp_params['cost']['null_space']['weight'] > 0:
+        # if self.exp_params["cost"]["null_space"]["weight"] > 0:
         null_disp_cost = self.null_cost.forward(
             state_batch[:, :, 0 : self.n_dofs] - retract_state[:, 0 : self.n_dofs],
             J_full,

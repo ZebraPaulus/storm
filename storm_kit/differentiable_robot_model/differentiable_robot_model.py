@@ -543,7 +543,7 @@ class DifferentiableRobotModel(torch.nn.Module):
             axis = self._bodies[idx].joint_axis
             axis_idx = int(torch.where(axis[0])[0])
             p_i, z_i = pose.translation()[0], pose.rotation()[0, :, axis_idx]
-            lin_jac[:, i] = torch.cross(z_i, p_e - p_i)
+            lin_jac[:, i] = torch.linalg.cross(z_i, p_e - p_i)
             ang_jac[:, i] = z_i
 
         return lin_jac.to(inp_device), ang_jac.to(inp_device)
@@ -592,7 +592,7 @@ class DifferentiableRobotModel(torch.nn.Module):
                 axis_idx = self._bodies[idx].axis_idx
                 p_i = pose.translation()
                 z_i = torch.index_select(pose.rotation(), -1, axis_idx).squeeze(-1)
-                lin_jac[:, :, i] = torch.cross(z_i, ee_pos - p_i)
+                lin_jac[:, :, i] = torch.linalg.cross(z_i, ee_pos - p_i)
                 ang_jac[:, :, i] = z_i
         # print("12", time.time()-st)
         # st=time.time()

@@ -85,7 +85,12 @@ def build_int_matrix(
         for _ in range(order):
             chain_list.append(integrate_matrix)
             chain_list.append(diag_dt)
-    integrate_matrix = torch.chain_matmul(*chain_list)
+    # integrate_matrix = torch.chain_matmul(*chain_list)
+    while len(chain_list) >1:
+        A = chain_list.pop()
+        B = chain_list.pop()
+        chain_list.append(A@B)
+    integrate_matrix = chain_list[0]
     return integrate_matrix
 
 
