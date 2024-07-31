@@ -78,23 +78,26 @@ class PoseCost(nn.Module):
 
     def forward(self, ee_pos_batch, ee_rot_batch, ee_goal_pos, ee_goal_rot,t,dt):
         inp_device = ee_pos_batch.device
-        ee_pos_batch = ee_pos_batch.to(device=self.device, dtype=self.dtype) # 500x30x3
+        ee_pos_batch = ee_pos_batch.to(device=self.device, dtype=self.dtype).unsqueeze(2) # 500x30x3
         ee_rot_batch = ee_rot_batch.to(device=self.device, dtype=self.dtype) # 500x30x3x3
-        ee_goal_pos = ee_goal_pos(t).to(device=self.device, dtype=self.dtype)# 1x3
-        ee_goal_rot = ee_goal_rot(t).to(device=self.device, dtype=self.dtype)# 1x3x3
+        # ee_goal_pos = ee_goal_pos(t).to(device=self.device, dtype=self.dtype)# 1x3
+        # ee_goal_rot = ee_goal_rot(t).to(device=self.device, dtype=self.dtype)# 1x3x3
+        ee_goal_pos = torch.stack([ee_goal_pos(t+x*dt).t() for x in range(1,ee_pos_batch.size(dim=1)+1)]).to(device=self.device, dtype=self.dtype).squeeze(1)# 30x1x3
+        ee_goal_rot = torch.stack([ee_goal_rot(t+x*dt) for x in range(1,ee_rot_batch.size(dim=1)+1)]).to(device=self.device, dtype=self.dtype).squeeze(1)# 30x3x3
+
 
         # Inverse of goal transform
         R_g_t = ee_goal_rot.transpose(-2, -1)  # w_R_g -> g_R_w
-        R_g_t_d = (-1.0 * R_g_t @ ee_goal_pos.t()).transpose(
+        R_g_t_d = (-1.0 * torch.matmul(R_g_t, ee_goal_pos)).transpose(
             -2, -1
         )  # -g_R_w * w_d_g -> g_d_g
 
         # Rotation part
-        R_g_ee = R_g_t @ ee_rot_batch  # g_R_w * w_R_ee -> g_R_ee
+        R_g_ee = torch.matmul(R_g_t, ee_rot_batch)  # g_R_w * w_R_ee -> g_R_ee
 
         # Translation part
         # transpose is done for matmul
-        term1 = (R_g_t @ ee_pos_batch.transpose(-2, -1)).transpose(
+        term1 = torch.matmul(R_g_t, ee_pos_batch.transpose(-2, -1)).transpose(
             -2, -1
         )  # g_R_w * w_d_ee -> g_d_ee
         d_g_ee = term1 + R_g_t_d  # g_d_g + g_d_ee
@@ -119,7 +122,7 @@ class PoseCost(nn.Module):
         position_err[position_err < self.convergence_val[1]] = 0.0
         cost = self.weight[0] * self.orientation_gaussian(
             torch.sqrt(rot_err)
-        ) + self.weight[1] * self.position_gaussian(torch.sqrt(position_err))
+        ) + self.weight[1] * self.position_gaussian(torch.sqrt(position_err)).squeeze()
 
         # dimension should be bacth * traj_length
         return cost.to(inp_device), rot_err_norm, goal_dist
