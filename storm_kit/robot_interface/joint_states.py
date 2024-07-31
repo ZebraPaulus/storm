@@ -10,10 +10,10 @@ from copy import deepcopy
 class MPCRobotController:
     def __init__(self):
         # Initialize the ROS node (if not already initialized)
-        if not rospy.get_node_uri():
-            rospy.init_node("mpc_robot_controller", anonymous=True, disable_signals=True)
+        rospy.init_node("mpc_robot_controller")
 
         # Subscriber for joint states
+        self.available = False
         self.joint_state_subscriber = rospy.Subscriber(
             "franka_motion_control/joint_states", JointState, self.joint_state_callback
         )
@@ -28,12 +28,17 @@ class MPCRobotController:
         """
         Callback function for joint state updates.
         """
+        self.available = True
         self.current_joint_state = msg
 
     def get_current_joint_state(self):
         """
         Returns the current joint state.
         """
+        while not self.available:
+            print("Waiting for joint state...")
+            rospy.sleep(0.1)
+
         cjs = deepcopy(self.current_joint_state)
         current_robot_state = {
                     "name": cjs.name,
@@ -41,15 +46,15 @@ class MPCRobotController:
                     "velocity": np.array(cjs.velocity),
                     "acceleration": np.array(cjs.effort),
                 }
+        return current_robot_state
 
-    def send_joint_command(self, joint_commands):
+    def send_joint_command(self, q_des, qd_des=np.zeros(7), qdd_des=np.zeros(7)):
         """
         Sends a command to the robot's joints.
         :param joint_commands: A list of joint positions/velocities/efforts.
         """
-        command_msg = Float64MultiArray()
-        command_msg.data = joint_commands
-        self.joint_command_publisher.publish(command_msg)
+        js = JointState(name=self.current_joint_state.name, position=q_des, velocity=qd_des, effort=qdd_des)
+        self.joint_command_publisher.publish(js)
     
     def close(self):
         """
