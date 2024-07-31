@@ -25,7 +25,7 @@
 """
 import copy
 from isaacgym import gymapi
-debug = True
+import time
 
 # from isaacgym import gymutil
 
@@ -81,7 +81,14 @@ from storm_kit.mpc.task.reacher_task import ReacherTask
 
 np.set_printoptions(precision=2)
 
-def mpc_robot_interactive(args, gym_instance):
+
+def mpc_robot_interactive(args, gym_instance, debug=False):
+
+    # ROS
+    if debug == False:
+        from storm_kit.robot_interface.joint_states import MPCRobotController
+
+        lab_controller = MPCRobotController()
     vis_ee_target = True
     robot_file = "franka.yml"
     task_file = "franka_grasper.yml"
@@ -180,29 +187,21 @@ def mpc_robot_interactive(args, gym_instance):
     ee_error = 10.0
     j = 0
     t_step = 0
-    i = 0
 
-    mpc_control.update_params(
-        goal_state=np.array(
-            # [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,    # joint angles
-            [
-                -0.3,
-                0.3,
-                0.2,
-                -2.0,
-                0.0,
-                2.4,
-                0.0,  # joint angles
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-            ]  # joint velocities
-        )
-    )
+    def goal_state(tensor_args):
+        gs = torch.as_tensor(
+            np.array(
+                [-0.3, 0.3, 0.2, -2.0, 0.0, 2.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            ),
+            **tensor_args
+        ).unsqueeze(0)
+
+        def out(t):
+            return gs
+
+        return out
+
+    mpc_control.update_params(t_step, goal_state=goal_state)
 
     # spawn object:
     asset_options = gymapi.AssetOptions()
@@ -213,11 +212,9 @@ def mpc_robot_interactive(args, gym_instance):
     if vis_ee_target:
         obj_asset_root = get_assets_path()
 
-        goal_pose = np.ravel(
-            mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy()
-        )
+        g_p = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
         object_pose = gymapi.Transform()
-        object_pose.p = gymapi.Vec3(goal_pose[0], goal_pose[1], goal_pose[2])
+        object_pose.p = gymapi.Vec3(g_p[0], g_p[1], g_p[2])
         object_pose.r = gymapi.Quat(0, 0, 0, 1)
 
         # ball in end effector:
@@ -279,7 +276,7 @@ def mpc_robot_interactive(args, gym_instance):
     # qd_des = None
     t_step = gym_instance.get_sim_time()
 
-    goal_pose = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
+    g_p = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
     g_q = np.ravel(mpc_control.controller.rollout_fn.goal_ee_quat.cpu().numpy())
 
     # region target control
@@ -290,64 +287,98 @@ def mpc_robot_interactive(args, gym_instance):
     pp.distance = 0.8
     gym.add_ground(sim, pp)
 
-    # ROS
-    if debug == False:
-        from storm_kit.robot_interface.joint_states import MPCRobotController
-        lab_controller = MPCRobotController()
+    # currying function, that ignores second argument
+    # use as placeholder to implement time dependent g_p and g_q
+    def set_goal_ee(x):
+        def add_tensor_args(tensor_args=None):
+            def out(t=0):
+                if tensor_args is None:
+                    return x
+                else:
+                    return torch.as_tensor(x, **tensor_args).unsqueeze(0)
 
-    while i > -100:
+            return out
+
+        return add_tensor_args
+
+    # init
+    g_p = set_goal_ee(g_p)
+    g_q = set_goal_ee(g_q)
+
+    times = {"start": 0, "end": 0}
+    times_file = open("times.csv", "w")
+    times_file.write("start,step,get_pose,update_params,get_command,get_error,set_gym,set_lines,end\n")
+    while t_step > -100:
         try:
+            times["start"] = time.time()
             gym_instance.step()
-            if vis_ee_target:
-                pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
-                pose = copy.deepcopy(w_T_r.inverse() * pose)
-
-                if np.linalg.norm(
-                    goal_pose - np.ravel([pose.p.x, pose.p.y, pose.p.z])
-                ) > 0.00001 or (
-                    np.linalg.norm(
-                        g_q - np.ravel([pose.r.w, pose.r.x, pose.r.y, pose.r.z])
-                    )
-                    > 0.00001
-                ):
-                    goal_pose = [pose.p.x, pose.p.y, pose.p.z]
-                    g_q = [pose.r.w, pose.r.x, pose.r.y, pose.r.z]
-
-                    mpc_control.update_params(goal_ee_pos=goal_pose, goal_ee_quat=g_q)
-            t_step += sim_dt
-
-            # print(current_robot_state)
+            times["step"] = time.time()
+            # updating robot position
             if debug == False:
                 current_robot_state = lab_controller.get_current_joint_state()
-                
+                robot_sim.set_robot_state(
+                    current_robot_state["position"],
+                    current_robot_state["velocity"],
+                    env_ptr,
+                    robot_ptr,
+                )
             else:
-                current_robot_state = copy.deepcopy(robot_sim.get_state(env_ptr, robot_ptr))
+                current_robot_state = copy.deepcopy(
+                    robot_sim.get_state(env_ptr, robot_ptr)
+                )
+            # updating target pose for current ball position
+            pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
+            pose = copy.deepcopy(w_T_r.inverse() * pose)
+            times["get_pose"] = time.time()
+
+            if (
+                np.linalg.norm(g_p()() - np.ravel([pose.p.x, pose.p.y, pose.p.z]))
+                > 0.00001
+            ) or (
+                np.linalg.norm(
+                    g_q()() - np.ravel([pose.r.w, pose.r.x, pose.r.y, pose.r.z])
+                )
+                > 0.00001
+            ):
+
+                g_p = set_goal_ee([pose.p.x, pose.p.y, pose.p.z])
+                g_q = set_goal_ee([pose.r.w, pose.r.x, pose.r.y, pose.r.z])
+
+                mpc_control.update_params(
+                    t=t_step, dt=sim_dt, goal_ee_pos=g_p, goal_ee_quat=g_q
+                )
+            else:
+                mpc_control.update_params(t=t_step, dt=sim_dt)
+
+            times["update_params"] = time.time()
+
+            t_step += sim_dt
 
             command = mpc_control.get_command(
                 t_step, current_robot_state, control_dt=sim_dt, WAIT=True
             )
+            times["get_command"] = time.time()
 
-            filtered_state_mpc = current_robot_state  # mpc_control.current_state
             curr_state = np.hstack(
                 (
-                    filtered_state_mpc["position"],
-                    filtered_state_mpc["velocity"],
-                    filtered_state_mpc["acceleration"],
+                    current_robot_state["position"],
+                    current_robot_state["velocity"],
+                    current_robot_state["acceleration"],
                 )
             )
 
             curr_state_tensor = torch.as_tensor(curr_state, **tensor_args).unsqueeze(0)
             # get position command:
             q_des = copy.deepcopy(command["position"])
-            # qd_des = copy.deepcopy(command["velocity"])  # * 0.5
+            qd_des = copy.deepcopy(command["velocity"])  # * 0.5
             # qdd_des = copy.deepcopy(command["acceleration"])
 
-            ee_error = mpc_control.get_current_error(filtered_state_mpc)
+            ee_error = mpc_control.get_current_error(current_robot_state)
+            times["get_error"] = time.time()
 
             pose_state = mpc_control.controller.rollout_fn.get_ee_pose(
                 curr_state_tensor
             )
-
             # get current pose:
             e_pos = np.ravel(pose_state["ee_pos_seq"].cpu().numpy())
             e_quat = np.ravel(pose_state["ee_quat_seq"].cpu().numpy())
@@ -358,13 +389,13 @@ def mpc_robot_interactive(args, gym_instance):
 
             if vis_ee_target:
                 gym.set_rigid_transform(env_ptr, ee_body_handle, copy.deepcopy(ee_pose))
-
+            times["set_gym"] = time.time()
             print(
-                "\r",
+                # "\r",  # overwriting the line
                 ["{:.3f}".format(x) for x in ee_error],
                 "{:.3f}".format(mpc_control.opt_dt),
                 "{:.3f}".format(mpc_control.mpc_dt),
-                end="",   # overwriting the line
+                end="\n",
             )
 
             gym_instance.clear_lines()
@@ -381,17 +412,32 @@ def mpc_robot_interactive(args, gym_instance):
                 color[0] = float(k) / float(top_trajs.shape[0])
                 color[1] = 1.0 - float(k) / float(top_trajs.shape[0])
                 gym_instance.draw_lines(pts, color=color)
+            times["set_lines"] = time.time()
 
             robot_sim.command_robot_position(q_des, env_ptr, robot_ptr)
-            # robot_sim.set_robot_state(q_des, qd_des, env_ptr, robot_ptr)
-            # current_state = command
 
-            i += 1
+            if debug == False:
+                lab_controller.send_joint_command(q_des, qd_des)
+            times["end"] = time.time()
+            times_file.write(
+                "{},{},{},{},{},{},{},{},{}\n".format(
+                    times["start"],
+                    times["step"],
+                    times["get_pose"],
+                    times["update_params"],
+                    times["get_command"],
+                    times["get_error"],
+                    times["set_gym"],
+                    times["set_lines"],
+                    times["end"],
+                )
+            )
 
         except KeyboardInterrupt:
             print("Closing")
             # done = True
             break
+    times_file.close()
     mpc_control.close()
     if debug == False:
         lab_controller.close()
@@ -414,10 +460,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--control_space", type=str, default="acc", help="Robot to spawn"
     )
+    parser.add_argument(
+        "--debug", action="store_true", default=False, help="headless gym"
+    )
     args = parser.parse_args()
 
     sim_params = load_yaml(join_path(get_gym_configs_path(), "physx.yml"))
     sim_params["headless"] = args.headless
     gym_instance = Gym(**sim_params)
 
-    mpc_robot_interactive(args, gym_instance)
+    mpc_robot_interactive(args, gym_instance, debug=args.debug)
