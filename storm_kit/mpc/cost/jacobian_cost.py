@@ -54,6 +54,7 @@ class JacobianCost(nn.Module):
         goal_ee_pos,
         goal_ee_rot,
         jac_batch,
+        t,
         dt,
         proj_type="transpose",
         dist_type="l2",
@@ -65,8 +66,8 @@ class JacobianCost(nn.Module):
         inp_device = ee_pos_batch.device
         ee_pos_batch = ee_pos_batch.to(self.device)
         ee_rot_batch = ee_rot_batch.to(self.device)
-        goal_ee_pos = goal_ee_pos.to(self.device)
-        goal_ee_rot = goal_ee_rot.to(self.device)
+        goal_ee_pos = goal_ee_pos(t).to(self.device)
+        goal_ee_rot = goal_ee_rot(t).to(self.device)
         jac_batch = jac_batch.to(self.device)
 
         # calculate desired x_dot (position+orientation)

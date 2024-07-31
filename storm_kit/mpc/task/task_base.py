@@ -53,9 +53,9 @@ class BaseTask:
     def init_mppi(self, **kwargs):
         raise NotImplementedError
 
-    def update_params(self, **kwargs):
-        self.controller.rollout_fn.update_params(**kwargs)
-        self.control_process.update_params(**kwargs)
+    def update_params(self,*args, **kwargs):
+        self.controller.rollout_fn.update_params(*args,**kwargs)
+        self.control_process.update_params(*args,**kwargs)
         return True
 
     def get_command(self, t_step, curr_state, control_dt, WAIT=False):

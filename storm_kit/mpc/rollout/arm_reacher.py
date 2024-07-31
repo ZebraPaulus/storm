@@ -83,9 +83,11 @@ class ArmReacher(ArmBase):
         goal_ee_rot = self.goal_ee_rot
         retract_state = self.retract_state
         goal_state = self.goal_state
+        t = self.t
+        dt = self.dt
 
         goal_cost, rot_err_norm, goal_dist = self.goal_cost.forward(
-            ee_pos_batch, ee_rot_batch, goal_ee_pos, goal_ee_rot
+            ee_pos_batch, ee_rot_batch, goal_ee_pos, goal_ee_rot,t,dt#=0  # TODO: add t
         )
 
         cost += goal_cost
@@ -118,6 +120,8 @@ class ArmReacher(ArmBase):
 
     def update_params(
         self,
+        t=0,
+        dt=0,
         retract_state=None,
         goal_state=None,
         goal_ee_pos=None,
@@ -136,33 +140,42 @@ class ArmReacher(ArmBase):
         super(ArmReacher, self).update_params(retract_state=retract_state)
 
         if goal_ee_pos is not None:
-            self.goal_ee_pos = torch.as_tensor(
-                goal_ee_pos, **self.tensor_args
-            ).unsqueeze(0)
+            self.goal_ee_pos = goal_ee_pos(self.tensor_args)
             self.goal_state = None
+
         if goal_ee_rot is not None:
-            self.goal_ee_rot = torch.as_tensor(
-                goal_ee_rot, **self.tensor_args
-            ).unsqueeze(0)
-            self.goal_ee_quat = matrix_to_quaternion(self.goal_ee_rot)
+            self.goal_ee_rot = goal_ee_rot(self.tensor_args)
+
+            def goal_quat(t):
+                return matrix_to_quaternion(self.goal_ee_quat(t))
+
+            self.goal_ee_quat = goal_quat
             self.goal_state = None
+
         if goal_ee_quat is not None:
-            self.goal_ee_quat = torch.as_tensor(
-                goal_ee_quat, **self.tensor_args
-            ).unsqueeze(0)
-            self.goal_ee_rot = quaternion_to_matrix(self.goal_ee_quat)
+            self.goal_ee_quat = goal_ee_quat(self.tensor_args)
+
+            def goal_rot(t):
+                return quaternion_to_matrix(self.goal_ee_quat(t))
+
+            self.goal_ee_rot = goal_rot
             self.goal_state = None
+
         if goal_state is not None:
-            self.goal_state = torch.as_tensor(goal_state, **self.tensor_args).unsqueeze(
-                0
-            )
+            self.goal_state = goal_state(self.tensor_args)
+            gs = self.goal_state(0)
             self.goal_ee_pos, self.goal_ee_rot = (
                 self.dynamics_model.robot_model.compute_forward_kinematics(
-                    self.goal_state[:, 0 : self.n_dofs],
-                    self.goal_state[:, self.n_dofs : 2 * self.n_dofs],
+                    gs[:, 0 : self.n_dofs],
+                    gs[:, self.n_dofs : 2 * self.n_dofs],
                     link_name=self.exp_params["model"]["ee_link_name"],
                 )
             )
             self.goal_ee_quat = matrix_to_quaternion(self.goal_ee_rot)
+        
+        if t is not None:
+            self.t = t
+        if dt is not None:
+            self.dt = dt
 
         return True

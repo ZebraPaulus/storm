@@ -76,13 +76,12 @@ class PoseCost(nn.Module):
         self.dtype = self.tensor_args["dtype"]
         self.device = self.tensor_args["device"]
 
-    def forward(self, ee_pos_batch, ee_rot_batch, ee_goal_pos, ee_goal_rot):
-
+    def forward(self, ee_pos_batch, ee_rot_batch, ee_goal_pos, ee_goal_rot,t,dt):
         inp_device = ee_pos_batch.device
-        ee_pos_batch = ee_pos_batch.to(device=self.device, dtype=self.dtype)
-        ee_rot_batch = ee_rot_batch.to(device=self.device, dtype=self.dtype)
-        ee_goal_pos = ee_goal_pos.to(device=self.device, dtype=self.dtype)
-        ee_goal_rot = ee_goal_rot.to(device=self.device, dtype=self.dtype)
+        ee_pos_batch = ee_pos_batch.to(device=self.device, dtype=self.dtype) # 500x30x3
+        ee_rot_batch = ee_rot_batch.to(device=self.device, dtype=self.dtype) # 500x30x3x3
+        ee_goal_pos = ee_goal_pos(t).to(device=self.device, dtype=self.dtype)# 1x3
+        ee_goal_rot = ee_goal_rot(t).to(device=self.device, dtype=self.dtype)# 1x3x3
 
         # Inverse of goal transform
         R_g_t = ee_goal_rot.transpose(-2, -1)  # w_R_g -> g_R_w

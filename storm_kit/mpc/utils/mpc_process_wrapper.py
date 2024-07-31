@@ -210,7 +210,7 @@ class ControlProcess(object):
         # print(f_idx)
         return command[f_idx:], command_tstep[f_idx:]
 
-    def update_params(self, **kwargs):
+    def update_params(self,*args, **kwargs):
 
         self.params = kwargs
 
