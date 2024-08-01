@@ -209,51 +209,50 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
     asset_options.fix_base_link = True
     asset_options.thickness = 0.002
 
-    if vis_ee_target:
-        obj_asset_root = get_assets_path()
+    obj_asset_root = get_assets_path()
 
-        g_p = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
-        object_pose = gymapi.Transform()
-        object_pose.p = gymapi.Vec3(g_p[0], g_p[1], g_p[2])
-        object_pose.r = gymapi.Quat(0, 0, 0, 1)
+    g_p = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
+    object_pose = gymapi.Transform()
+    object_pose.p = gymapi.Vec3(g_p[0], g_p[1], g_p[2])
+    object_pose.r = gymapi.Quat(0, 0, 0, 1)
 
-        # ball in end effector:
-        ee_handle = world_instance.spawn_object(
-            "urdf/ball/ball.urdf",
-            obj_asset_root,
-            object_pose,
-            name="ee_current_as_ball",
-        )
-        ee_body_handle = gym.get_actor_rigid_body_handle(env_ptr, ee_handle, 0)
-        gym.set_rigid_body_color(
-            env_ptr,
-            ee_handle,
-            0,
-            gymapi.MESH_VISUAL_AND_COLLISION,
-            gymapi.Vec3(0, 0.8, 0),
-        )
+    # ball in end effector:
+    ee_handle = world_instance.spawn_object(
+        "urdf/ball/ball.urdf",
+        obj_asset_root,
+        object_pose,
+        name="ee_current_as_ball",
+    )
+    ee_body_handle = gym.get_actor_rigid_body_handle(env_ptr, ee_handle, 0)
+    gym.set_rigid_body_color(
+        env_ptr,
+        ee_handle,
+        0,
+        gymapi.MESH_VISUAL_AND_COLLISION,
+        gymapi.Vec3(0, 0.8, 0),
+    )
 
-        # moving ball:
-        object_pose.r = gymapi.Quat(0, -0.7071068, 0, 0.7071068)
+    # moving ball:
+    object_pose.r = gymapi.Quat(0, -0.7071068, 0, 0.7071068)
 
-        target_object = world_instance.spawn_object(
-            "urdf/ball/movable_ball.urdf",
-            obj_asset_root,
-            object_pose,
-            name="ee_target_object",
-        )
+    target_object = world_instance.spawn_object(
+        "urdf/ball/movable_ball.urdf",
+        obj_asset_root,
+        object_pose,
+        name="ee_target_object",
+    )
 
-        tray_color = gymapi.Vec3(0.8, 0.1, 0.1)
+    tray_color = gymapi.Vec3(0.8, 0.1, 0.1)
 
-        # obj_base_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 0)
-        # gym.set_rigid_body_color(
-        #     env_ptr, target_object, 0, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
-        # )
-        # the moving ball
-        obj_body_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 6)
-        gym.set_rigid_body_color(
-            env_ptr, target_object, 6, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
-        )
+    # obj_base_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 0)
+    # gym.set_rigid_body_color(
+    #     env_ptr, target_object, 0, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
+    # )
+    # the moving ball
+    obj_body_handle = gym.get_actor_rigid_body_handle(env_ptr, target_object, 6)
+    gym.set_rigid_body_color(
+        env_ptr, target_object, 6, gymapi.MESH_VISUAL_AND_COLLISION, tray_color
+    )
 
     # object_pose = w_T_r * object_pose
     # some weird rotation
@@ -289,14 +288,12 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
     # currying function, that ignores second argument
     # use as placeholder to implement time dependent g_p and g_q
-    def set_goal_ee(x):
+    def set_goal_ee(b: np.ndarray, c = None):
+        if c is None:
+            c = b*0
         def add_tensor_args(tensor_args=None):
-            def out(t=0):
-                if tensor_args is None:
-                    return x
-                else:
-                    return torch.as_tensor(x, **tensor_args).unsqueeze(0)
-
+            def out(t=1):
+                return b if tensor_args is None else torch.as_tensor(b, **tensor_args).unsqueeze(0)
             return out
 
         return add_tensor_args
@@ -350,9 +347,9 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             else:
                 mpc_control.update_params(t=t_step, dt=sim_dt)
 
-            times["update_params"] = time.time()
-
             t_step += sim_dt
+
+            times["update_params"] = time.time()
 
             command = mpc_control.get_command(
                 t_step, current_robot_state, control_dt=sim_dt, WAIT=True
@@ -438,6 +435,7 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             # done = True
             break
     times_file.close()
+    print("File closed")
     mpc_control.close()
     if debug == False:
         lab_controller.close()

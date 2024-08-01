@@ -155,6 +155,7 @@ class URDFKinematicModelBaseline(DynamicsModelBase):
                 dt_traj_params["max_dt"],
                 steps=int((1 - dt_traj_params["base_ratio"]) * self.num_traj_points),
             ).tolist()
+            print("Smooth blending: ", smooth_blending)
             dt_array += smooth_blending
 
             self.dt = dt_traj_params["base_dt"]
