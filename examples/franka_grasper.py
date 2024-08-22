@@ -87,8 +87,11 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
     # ROS
     if debug == False:
         from storm_kit.robot_interface.joint_states import MPCRobotController
+        from storm_kit.robot_interface.ball_tracker import BallTracker
 
         lab_controller = MPCRobotController()
+        ball_tracker = BallTracker()
+
     vis_ee_target = True
     robot_file = "franka.yml"
     task_file = "franka_grasper.yml"
@@ -293,7 +296,12 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             c = b*0
         def add_tensor_args(tensor_args=None):
             def out(t=1):
-                return b if tensor_args is None else torch.as_tensor(b, **tensor_args).unsqueeze(0)
+                return (
+                    b
+                    if tensor_args is None
+                    else torch.as_tensor(b, **tensor_args).unsqueeze(0)
+                )
+
             return out
 
         return add_tensor_args
@@ -304,7 +312,9 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
     times = {"start": 0, "end": 0}
     times_file = open("times.csv", "w")
-    times_file.write("start,step,get_pose,update_params,get_command,get_error,set_gym,set_lines,end\n")
+    times_file.write(
+        "start,step,get_pose,update_params,get_command,get_error,set_gym,set_lines,end\n"
+    )
     while t_step > -100:
         try:
             times["start"] = time.time()
@@ -319,13 +329,30 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                     env_ptr,
                     robot_ptr,
                 )
+                current_ball_pos = ball_tracker.get_absolute_position()
+                pose = gymapi.Transform()
+                pose.p = gymapi.Vec3(
+                    current_ball_pos[0], current_ball_pos[1], current_ball_pos[2]
+                )
+                pose.r = gymapi.Quat(0,0.7071068, -0.7071068,0)
+                # pose.r.x = 0
+                # pose.r.y = -0.7071068
+                # pose.r.z = 0.7071068
+                # pose.r.w = 0
+                # sim.set_rigid_transform(env_ptr, obj_body_handle, p)
+                # world_instance.set_pose(
+                #     obj_body_handle,
+                #     pose,
+                # )
+                # world_instance.set_pose(obj_body_handle, p)
+
             else:
                 current_robot_state = copy.deepcopy(
                     robot_sim.get_state(env_ptr, robot_ptr)
                 )
+                pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
+                pose = copy.deepcopy(w_T_r.inverse() * pose)
             # updating target pose for current ball position
-            pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
-            pose = copy.deepcopy(w_T_r.inverse() * pose)
             times["get_pose"] = time.time()
 
             if (
@@ -389,9 +416,7 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             times["set_gym"] = time.time()
             print(
                 # "\r",  # overwriting the line
-                ["{:.3f}".format(x) for x in ee_error],
-                "{:.3f}".format(mpc_control.opt_dt),
-                "{:.3f}".format(mpc_control.mpc_dt),
+                "[{:.5f}, {:.5f}, {:.5f}]".format(pose.p.x, pose.p.y, pose.p.z),
                 end="\n",
             )
 
