@@ -334,7 +334,7 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 pose.p = gymapi.Vec3(
                     current_ball_pos[0], current_ball_pos[1], current_ball_pos[2]
                 )
-                pose.r = gymapi.Quat(0,0.7071068, -0.7071068,0)
+                pose.r = gymapi.Quat(0.7071068, -0.7071068,0,0)
                 # pose.r.x = 0
                 # pose.r.y = -0.7071068
                 # pose.r.z = 0.7071068
