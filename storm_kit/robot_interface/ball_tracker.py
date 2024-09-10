@@ -1,31 +1,44 @@
 import rospy
 import rostopic
-from geometry_msgs.msg import Point
 import numpy as np
+import cv2
+import copy
+from collections import deque
+from scipy.interpolate import interp1d
 
 
 class BallTracker:
     def __init__(self):
         # rospy.init_node("ball_tracker", anonymous=True)
+        top = rostopic.get_topic_class("/camera/color/camera_info")
+        camera_info = rospy.wait_for_message("/camera/color/camera_info", top[0])
+        # Camera values#
+        self.width = camera_info.width
+        self.height = camera_info.height
+        self.D = copy.deepcopy(camera_info.D)
+        self.K = copy.deepcopy(np.array(camera_info.K).reshape(3, 3))
+        self.R = copy.deepcopy(np.array(camera_info.R).reshape(3, 3))
+        self.P = copy.deepcopy(np.array(camera_info.P).reshape(3, 4))
 
-        # Camera values
-        self.width = 1280
-        self.height = 720
-        self.x_fov = np.deg2rad(86)
-        self.y_fov = np.deg2rad(57)
         self.cTw = np.array(
             [
                 [
-                    0.3278463,  0.6182624, -0.7143308,
-                    1.011,
+                    0.3463431134015140,
+                    0.6351211170161396,
+                    -0.6904111923480942,
+                    1.052321073423853,
                 ],
                 [
-                    0.9440518, -0.2430674,  0.2229002,
-                    -0.1202,
+                    0.9378501564944148,
+                    -0.2516690257335052,
+                    0.2389556139741229,
+                    -0.1766565658459666,
                 ],
                 [
-                    -0.0358197, -0.7474422, -0.6633604,
-                    0.454,
+                    -0.02198935566923014,
+                    -0.7302628760977237,
+                    -0.682812272905762,
+                    0.5364572141822066,
                 ],
                 [0, 0, 0, 1],
             ]
@@ -35,28 +48,70 @@ class BallTracker:
         self.ball_radius = 0.02
         self.ball_z = 0.02
 
+        self.history = deque(maxlen=100)
+
         # Subscriber
         TopicType, topic_str, _ = rostopic.get_topic_class("/ball/tracking_update")
         self.subscriber = rospy.Subscriber(
             "/ball/tracking_update", TopicType, self.callback
         )
 
+    def __del__(self):
+        self.subscriber.unregister()
+
     def callback(self, data):
         # Compute the line, on which the ball is located
-        # angles
-        x_ang = (data.x - self.width / 2) / self.width * self.x_fov
-        y_ang = (data.y - self.height / 2) / self.height * self.y_fov
+        # undistort coordinates
+        if data.r < 10:
+            return
 
-        # Homogeneous direction vector from camera perspective
-        self.dir = np.array([np.sin(x_ang), np.sin(y_ang), 1, 0]).T
-        self.dir = self.dir / np.linalg.norm(self.dir)
+        raw_points = np.array([[data.x, data.y]], dtype=np.float32)
 
-        # Rotate the direction vector to the world frame
-        self.ball_dir = self.cTw @ self.dir
+        # Undistort the points
+        undistorted_points = cv2.undistortPoints(
+            raw_points, self.K, self.D, R=self.R, P=self.P
+        )
 
-        self.r = data.r
+        # Convert back to pixel coordinates
+        self.p = undistorted_points[0][0]
+
+        # calculate direction vector
+        self.ball_dir = self.cTw @ np.array(
+            [
+                (self.p[0] - self.K[0][2]) / self.K[0][0],
+                (self.p[1] - self.K[1][2]) / self.K[1][1],
+                1,
+                0,
+            ]
+        )
+
         # Compute the absolute position
         self.absolute_position = self.compute_absolute_position()
+        self.history.append((data.header.stamp.to_sec(), self.absolute_position))
+        self.compute_time_pos()
+
+    def compute_time_pos(self):
+        # Extract timestamps and positions from history
+        times = [entry[0] for entry in self.history]
+        positions = [entry[1] for entry in self.history]
+
+        # Create interpolation functions for each coordinate
+        self.interp_x = interp1d(
+            times, [pos[0] for pos in positions], fill_value="extrapolate"
+        )
+        self.interp_y = interp1d(
+            times, [pos[1] for pos in positions], fill_value="extrapolate"
+        )
+        self.interp_z = interp1d(
+            times, [pos[2] for pos in positions], fill_value="extrapolate"
+        )
+
+    def get_position_at_time(self, timestamp):
+        # Use the interpolation functions to get the position at the given timestamp
+        x = self.interp_x(timestamp)
+        y = self.interp_y(timestamp)
+        z = self.interp_z(timestamp)
+        return np.array([x, y, z])
 
     def compute_absolute_position(self):
         # Line equation: point + t * direction_vector
@@ -87,6 +142,7 @@ class BallTracker:
 
 if __name__ == "__main__":
     try:
+        rospy.init_node("ball_tracker", anonymous=True)
         tracker = BallTracker()
         rospy.spin()
     except rospy.ROSInterruptException:

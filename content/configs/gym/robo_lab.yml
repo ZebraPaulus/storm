@@ -30,17 +30,17 @@ world_model:
       # Table
       table_left:
         dims: [1.2, 0.8, 0.05] # x, y, z
-        pose: [0.2, 0.0, -0.025, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw
+        pose: [0.2, 0.0, -0.039, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw
         name: "table_left"
 
       table_right:
         dims: [0.8, 1.2, 0.05] # x, y, z
-        pose: [0.0, 0.2, -0.025, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw
+        pose: [0.0, 0.2, -0.039, 0, 0, 0, 1.0] # x, y, z, qx, qy, qz, qw
         name: "table_right"
 
       table_diag:
         dims: [0.32, 0.566, 0.05] # x, y, z
-        pose: [0.488, 0.488, -0.025, 0.0, 0.0, 0.3826834, 0.9238795] # x, y, z, qx, qy, qz, qw
+        pose: [0.488, 0.488, -0.039, 0.0, 0.0, 0.3826834, 0.9238795] # x, y, z, qx, qy, qz, qw
         name: "table_diag"
 
       # Walls
@@ -60,10 +60,4 @@ world_model:
           g: 0.3
           b: 0.3
         name: "wall_right"
-      camera:
-        dims: [0.05,0.05,0.1]
-        pose: [1.011,-0.1202,0.454, 0.7458,0.5215,-0.2504,-0.3239]
-        color:
-          r: 0.6
-          g: 0.0
-          b: 0.0
+

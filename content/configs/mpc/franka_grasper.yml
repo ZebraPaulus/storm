@@ -102,7 +102,7 @@ cost:
   # cost for reaching desired position and orientation
   goal_pose:
     vec_weight: [0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
-    weight: [35.0, 100.0]
+    weight: [50.0, 200.0]
     position_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     orientation_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     hinge_val: -1
@@ -119,14 +119,14 @@ cost:
     thresh: 0.03
 
   null_space:
-    weight: 1.0 #0.01 #0.05 #0.5 #1.0
+    weight: 0.1 #0.01 #0.05 #0.5 #1.0
     gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 1.0 }
     vec_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1, 1]
     #retract_state : [-1.57, -1.2, 1.9, -1.383, -1.57, 0.00]
 
   primitive_collision:
-    weight: 5000.0
-    distance_threshold: 0.05
+    weight: 2000.0
+    distance_threshold: 0.03
     gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 10.0 }
 
   robot_self_collision:

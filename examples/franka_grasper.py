@@ -310,16 +310,10 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
     g_p = set_goal_ee(g_p)
     g_q = set_goal_ee(g_q)
 
-    times = {"start": 0, "end": 0}
-    times_file = open("times.csv", "w")
-    times_file.write(
-        "start,step,get_pose,update_params,get_command,get_error,set_gym,set_lines,end\n"
-    )
+    gripping = True
     while t_step > -100:
         try:
-            times["start"] = time.time()
             gym_instance.step()
-            times["step"] = time.time()
             # updating robot position
             if debug == False:
                 current_robot_state = lab_controller.get_current_joint_state()
@@ -329,22 +323,16 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                     env_ptr,
                     robot_ptr,
                 )
-                current_ball_pos = ball_tracker.get_absolute_position()
+                if gripping:
+                    goal = ball_tracker.get_position_at_time(rospy.get_time())
+                else:
+                    goal = np.array([0.3, 0.3, 0.5])
+
                 pose = gymapi.Transform()
-                pose.p = gymapi.Vec3(
-                    current_ball_pos[0], current_ball_pos[1], current_ball_pos[2]
-                )
-                pose.r = gymapi.Quat(0.7071068, -0.7071068,0,0)
-                # pose.r.x = 0
-                # pose.r.y = -0.7071068
-                # pose.r.z = 0.7071068
-                # pose.r.w = 0
-                # sim.set_rigid_transform(env_ptr, obj_body_handle, p)
-                # world_instance.set_pose(
-                #     obj_body_handle,
-                #     pose,
-                # )
-                # world_instance.set_pose(obj_body_handle, p)
+                pose.p = gymapi.Vec3(goal[0], goal[1], goal[2])
+                pose.r = gymapi.Quat(
+                    0.7071068, -0.7071068, 0, 0
+                )  # Orientation of the ball
 
             else:
                 current_robot_state = copy.deepcopy(
@@ -353,16 +341,10 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
                 pose = copy.deepcopy(w_T_r.inverse() * pose)
             # updating target pose for current ball position
-            times["get_pose"] = time.time()
 
             if (
                 np.linalg.norm(g_p()() - np.ravel([pose.p.x, pose.p.y, pose.p.z]))
-                > 0.00001
-            ) or (
-                np.linalg.norm(
-                    g_q()() - np.ravel([pose.r.w, pose.r.x, pose.r.y, pose.r.z])
-                )
-                > 0.00001
+                > 0.0001
             ):
 
                 g_p = set_goal_ee([pose.p.x, pose.p.y, pose.p.z])
@@ -373,15 +355,11 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 )
             else:
                 mpc_control.update_params(t=t_step, dt=sim_dt)
-
             t_step += sim_dt
-
-            times["update_params"] = time.time()
 
             command = mpc_control.get_command(
                 t_step, current_robot_state, control_dt=sim_dt, WAIT=True
             )
-            times["get_command"] = time.time()
 
             curr_state = np.hstack(
                 (
@@ -398,7 +376,6 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             # qdd_des = copy.deepcopy(command["acceleration"])
 
             ee_error = mpc_control.get_current_error(current_robot_state)
-            times["get_error"] = time.time()
 
             pose_state = mpc_control.controller.rollout_fn.get_ee_pose(
                 curr_state_tensor
@@ -408,17 +385,39 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
             e_quat = np.ravel(pose_state["ee_quat_seq"].cpu().numpy())
             ee_pose.p = copy.deepcopy(gymapi.Vec3(e_pos[0], e_pos[1], e_pos[2]))
             ee_pose.r = gymapi.Quat(e_quat[1], e_quat[2], e_quat[3], e_quat[0])
-
+            r_pos = ee_pose.p - pose.p
             ee_pose = copy.deepcopy(w_T_r) * copy.deepcopy(ee_pose)
 
             if vis_ee_target:
                 gym.set_rigid_transform(env_ptr, ee_body_handle, copy.deepcopy(ee_pose))
-            times["set_gym"] = time.time()
-            print(
-                # "\r",  # overwriting the line
-                "[{:.5f}, {:.5f}, {:.5f}]".format(pose.p.x, pose.p.y, pose.p.z),
-                end="\n",
-            )
+
+            dist = np.linalg.norm([r_pos.x, r_pos.y, r_pos.z])
+
+            if dist < 0.005 and gripping:
+                print(pose.p, goal)
+                input("On it! Continue?")
+                if debug == False:
+                    lab_controller.grip()
+                    rospy.sleep(0.5)
+                gripping = False
+            if dist < 0.02 and lab_controller.gripped:
+                print("Ball drop!")
+                lab_controller.release()
+                break
+            if gripping:
+                print(
+                    # "\r",  # overwriting the line
+                    "Point: {}, Coordinates: [{:.5f}, {:.5f}, {:.5f}], Robot: [{:.5f}, {:.5f}, {:.5f}]".format(
+                        ball_tracker.p,
+                        pose.p.x,
+                        pose.p.y,
+                        pose.p.z,
+                        r_pos.x,
+                        r_pos.y,
+                        r_pos.z,
+                    ),
+                    end="\n",
+                )
 
             gym_instance.clear_lines()
             top_trajs = mpc_control.top_trajs.cpu().float()  # .numpy()
@@ -434,33 +433,17 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 color[0] = float(k) / float(top_trajs.shape[0])
                 color[1] = 1.0 - float(k) / float(top_trajs.shape[0])
                 gym_instance.draw_lines(pts, color=color)
-            times["set_lines"] = time.time()
 
             robot_sim.command_robot_position(q_des, env_ptr, robot_ptr)
 
             if debug == False:
                 lab_controller.send_joint_command(q_des, qd_des)
-            times["end"] = time.time()
-            times_file.write(
-                "{},{},{},{},{},{},{},{},{}\n".format(
-                    times["start"],
-                    times["step"],
-                    times["get_pose"],
-                    times["update_params"],
-                    times["get_command"],
-                    times["get_error"],
-                    times["set_gym"],
-                    times["set_lines"],
-                    times["end"],
-                )
-            )
 
         except KeyboardInterrupt:
             print("Closing")
+            rospy.signal_shutdown("Shutting down the node.")
             # done = True
             break
-    times_file.close()
-    print("File closed")
     mpc_control.close()
     if debug == False:
         lab_controller.close()
@@ -468,7 +451,9 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
 
 if __name__ == "__main__":
+    import rospy
 
+    rospy.init_node("mpc_robot_controller")
     # instantiate empty gym:
     parser = argparse.ArgumentParser(description="pass args")
     parser.add_argument("--robot", type=str, default="franka", help="Robot to spawn")
