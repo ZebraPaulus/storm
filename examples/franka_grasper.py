@@ -393,17 +393,17 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
             dist = np.linalg.norm([r_pos.x, r_pos.y, r_pos.z])
 
+            if dist < 0.015 and lab_controller.gripped:
+                print("Ball drop!")
+                lab_controller.release()
+                break
             if dist < 0.005 and gripping:
                 print(pose.p, goal)
-                input("On it! Continue?")
+                print("On it! Continue?")
                 if debug == False:
                     lab_controller.grip()
                     rospy.sleep(0.5)
                 gripping = False
-            if dist < 0.02 and lab_controller.gripped:
-                print("Ball drop!")
-                lab_controller.release()
-                break
             if gripping:
                 print(
                     # "\r",  # overwriting the line

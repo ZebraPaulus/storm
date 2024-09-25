@@ -46,7 +46,7 @@ class BallTracker:
 
         # Ball values
         self.ball_radius = 0.02
-        self.ball_z = 0.02
+        self.ball_z = 0.005 # 0.02
 
         self.history = deque(maxlen=100)
 

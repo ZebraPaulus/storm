@@ -97,7 +97,7 @@ class ControlProcess(object):
         return curr_state
 
     def get_command_debug(self, t_step, curr_state, debug=False, control_dt=0.01):
-        """This function runs the controller in the same process and waits for optimization to  complete before return of a new command
+        """This function runs the controller in the same process and waits for optimization to complete before return of a new command
         Args:
         t_step: current timestep
         curr_state: current state to give to mpc
