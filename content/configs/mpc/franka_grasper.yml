@@ -89,7 +89,6 @@ model:
     grid_resolution: 0.05
 
 cost:
-  # cost for rotation and orientation
   collision:
     weight: 0.0
     gaussian_params: { "n": 0, "c": 0.5, "s": 0, "r": 5.0 }

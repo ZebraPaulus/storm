@@ -311,7 +311,10 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
     g_q = set_goal_ee(g_q)
 
     gripping = True
+    # open a file to write times into it
+    f = open("times.txt", "w")
     while t_step > -100:
+        f.write(str(time.time()) + "\n")
         try:
             gym_instance.step()
             # updating robot position
@@ -340,6 +343,8 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 )
                 pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
                 pose = copy.deepcopy(w_T_r.inverse() * pose)
+                goal = np.array([0.3, 0.3, 0.5])
+
             # updating target pose for current ball position
 
             if (
@@ -392,15 +397,14 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 gym.set_rigid_transform(env_ptr, ee_body_handle, copy.deepcopy(ee_pose))
 
             dist = np.linalg.norm([r_pos.x, r_pos.y, r_pos.z])
-
-            if dist < 0.015 and lab_controller.gripped:
+            if  dist < 0.015 and (not debug and lab_controller.gripped):
                 print("Ball drop!")
                 lab_controller.release()
                 break
             if dist < 0.005 and gripping:
                 print(pose.p, goal)
                 print("On it! Continue?")
-                if debug == False:
+                if not debug:
                     lab_controller.grip()
                     rospy.sleep(0.5)
                 gripping = False
@@ -408,7 +412,7 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 print(
                     # "\r",  # overwriting the line
                     "Point: {}, Coordinates: [{:.5f}, {:.5f}, {:.5f}], Robot: [{:.5f}, {:.5f}, {:.5f}]".format(
-                        ball_tracker.p,
+                        goal,
                         pose.p.x,
                         pose.p.y,
                         pose.p.z,
@@ -441,7 +445,9 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
         except KeyboardInterrupt:
             print("Closing")
+            f.close()
             rospy.signal_shutdown("Shutting down the node.")
+            rospy.sleep(1)
             # done = True
             break
     mpc_control.close()
@@ -453,7 +459,6 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 if __name__ == "__main__":
     import rospy
 
-    rospy.init_node("mpc_robot_controller")
     # instantiate empty gym:
     parser = argparse.ArgumentParser(description="pass args")
     parser.add_argument("--robot", type=str, default="franka", help="Robot to spawn")
@@ -476,5 +481,6 @@ if __name__ == "__main__":
     sim_params = load_yaml(join_path(get_gym_configs_path(), "physx.yml"))
     sim_params["headless"] = args.headless
     gym_instance = Gym(**sim_params)
-
+    if not args.debug:
+        rospy.init_node("mpc_robot_controller")
     mpc_robot_interactive(args, gym_instance, debug=args.debug)

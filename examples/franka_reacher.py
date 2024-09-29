@@ -24,6 +24,7 @@
 
 """
 import copy
+import time
 from isaacgym import gymapi
 
 # from isaacgym import gymutil
@@ -256,8 +257,9 @@ def mpc_robot_interactive(args, gym_instance):
 
     g_pos = np.ravel(mpc_control.controller.rollout_fn.goal_ee_pos.cpu().numpy())
     g_q = np.ravel(mpc_control.controller.rollout_fn.goal_ee_quat.cpu().numpy())
-
+    f = open("times2.txt", "w")
     while i > -100:
+        f.write(time.time())
         try:
             gym_instance.step()
             if vis_ee_target:
@@ -350,6 +352,7 @@ def mpc_robot_interactive(args, gym_instance):
 
         except KeyboardInterrupt:
             print("Closing")
+            f.close()
             # done = True
             break
     mpc_control.close()
