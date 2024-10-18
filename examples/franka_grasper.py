@@ -48,7 +48,10 @@ import yaml
 import argparse
 import numpy as np
 
-# from quaternion import quaternion, from_rotation_vector, from_rotation_matrix
+from quaternion import (
+    quaternion,
+    from_euler_angles,
+)
 import matplotlib.pyplot as plt
 
 from quaternion import (
@@ -291,9 +294,10 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
 
     # currying function, that ignores second argument
     # use as placeholder to implement time dependent g_p and g_q
-    def set_goal_ee(b: np.ndarray, c = None):
+    def set_goal_ee(b: np.ndarray, c=None):
         if c is None:
-            c = b*0
+            c = b * 0
+
         def add_tensor_args(tensor_args=None):
             def out(t=1):
                 return (
@@ -311,6 +315,7 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
     g_q = set_goal_ee(g_q)
 
     gripping = True
+    above = True
     # open a file to write times into it
     f = open("times.txt", "w")
     while t_step > -100:
@@ -342,9 +347,8 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                     robot_sim.get_state(env_ptr, robot_ptr)
                 )
                 pose = copy.deepcopy(world_instance.get_pose(obj_body_handle))
-                pose = copy.deepcopy(w_T_r.inverse() * pose)
-                goal = np.array([0.3, 0.3, 0.5])
-
+            if above:
+                pose.p.z += 0.07
             # updating target pose for current ball position
 
             if (
@@ -397,22 +401,26 @@ def mpc_robot_interactive(args, gym_instance, debug=False):
                 gym.set_rigid_transform(env_ptr, ee_body_handle, copy.deepcopy(ee_pose))
 
             dist = np.linalg.norm([r_pos.x, r_pos.y, r_pos.z])
-            if  dist < 0.015 and (not debug and lab_controller.gripped):
-                print("Ball drop!")
-                lab_controller.release()
-                break
-            if dist < 0.005 and gripping:
-                print(pose.p, goal)
-                print("On it! Continue?")
-                if not debug:
-                    lab_controller.grip()
-                    rospy.sleep(0.5)
-                gripping = False
+            if np.linalg.norm([r_pos.x, r_pos.y]) < 0.02:
+                above = False
+            else:
+                above = True
+            if dist < 0.01:
+                if not debug and lab_controller.gripped:
+                    print("Ball drop!")
+                    lab_controller.release()
+                    break
+                if gripping:
+                    print(ee_pose.p, pose.p)
+                    print("On it!")
+                    if not debug:
+                        lab_controller.grip()
+                        rospy.sleep(0.5)
+                    gripping = False
             if gripping:
                 print(
                     # "\r",  # overwriting the line
-                    "Point: {}, Coordinates: [{:.5f}, {:.5f}, {:.5f}], Robot: [{:.5f}, {:.5f}, {:.5f}]".format(
-                        goal,
+                    "Coordinates: [{:.5f}, {:.5f}, {:.5f}], Robot: [{:.5f}, {:.5f}, {:.5f}]".format(
                         pose.p.x,
                         pose.p.y,
                         pose.p.z,

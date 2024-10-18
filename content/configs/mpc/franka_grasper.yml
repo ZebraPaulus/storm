@@ -74,7 +74,7 @@ model:
         "panda_hand",
       ]
     #link_objs: ['panda_link6']
-    threshold: 0.20
+    threshold: 0.30
     bounds: [[-0.5, -0.8, 0.0], [0.5, 0.8, 1.0]]
     collision_spheres: "../robot/franka.yml"
     self_collision_weights: "robot_self/franka_self_sdf.pt"
@@ -100,8 +100,8 @@ cost:
 
   # cost for reaching desired position and orientation
   goal_pose:
-    vec_weight: [0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
-    weight: [50.0, 200.0]
+    vec_weight: [0.0, 0.0, 1.0, 1.0, 1.0, 0.9]
+    weight: [100.0, 200.0]
     position_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     orientation_gaussian_params: { "n": 0, "c": 0.0, "s": 0.0, "r": 10.0 }
     hinge_val: -1
@@ -114,7 +114,7 @@ cost:
   # cost for preserving mobility in all axis
   manipulability:
     weight: 30.0 #100.0 #0.05 #0.5 #1.0
-    gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 10.0 }
+    gaussian_params: { "n": 0, "c": 0.0, "s": 0, "r": 5.0 }
     thresh: 0.03
 
   null_space:
